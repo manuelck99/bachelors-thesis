@@ -1,0 +1,12 @@
+name: bachelors-thesis
+dependencies:
+  - python=3.12.*
+  - pip
+  - numpy
+  - pytorch::faiss-cpu
+  - networkx
+  - conda-forge::pandas
+  - conda-forge::geopandas
+  - scipy
+  - conda-forge::scikit-learn
+  - matplotlib
