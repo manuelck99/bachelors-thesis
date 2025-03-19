@@ -4,11 +4,13 @@ from vehicle_record import VehicleRecord
 
 
 def load_records(paths: list[str]) -> list[VehicleRecord]:
+    count = 0
     records = list()
     for path in paths:
         with open(path, mode="r", encoding="utf-8") as file:
-            for record_id, line in enumerate(file):
+            for line in file:
                 record = json.loads(line)
-                records.append(VehicleRecord(record_id, record))
+                records.append(VehicleRecord(count, record))
+                count += 1
 
     return records

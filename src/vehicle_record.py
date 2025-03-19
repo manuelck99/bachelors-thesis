@@ -49,28 +49,29 @@ class VehicleRecord:
 
 
 class VehicleRecordCluster:
-    records: dict[int, VehicleRecord]
-    vehicle_feature: np.ndarray | None
-    license_plate_feature: np.ndarray | None
-    license_plate_text: str | None
+    _records: dict[int, VehicleRecord]
+    _centroid_vehicle_feature: np.ndarray | None
+    _centroid_license_plate_feature: np.ndarray | None
+    _centroid_license_plate_text: str | None
 
-    def __init__(self):
-        self.records = dict()
-        self.vehicle_feature = None
-        self.license_plate_feature = None
-        self.license_plate_text = None
+    def __init__(self, dimension: int):
+        self._records = dict()
+        self._centroid_vehicle_feature = np.zeros(dimension, dtype=np.float32)
+        self._centroid_license_plate_feature = np.zeros(dimension, dtype=np.float32)
+        self._centroid_license_plate_text = None
 
-    def _calculate_centroid(self):
-        """
-        Implement this efficiently, i.e. incrementally
-        """
+    def _calculate_centroid(self, record: VehicleRecord, added: bool):
         pass
 
     def add_record(self, record: VehicleRecord):
-        pass
+        self._records[record.record_id] = record
+        record.cluster = self
+        self._calculate_centroid(record, added=True)
 
     def remove_record(self, record: VehicleRecord):
-        pass
+        del self._records[record.record_id]
+        record.cluster = None
+        self._calculate_centroid(record, added=False)
 
     def calculate_similarity_to_cluster(self, other: Self) -> float:
         pass
