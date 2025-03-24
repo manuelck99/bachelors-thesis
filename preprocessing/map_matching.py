@@ -3,7 +3,7 @@ from leuvenmapmatching.map.inmem import InMemMap
 from leuvenmapmatching.matcher.distance import DistanceMatcher
 
 
-data_path = "../../datasets/UrbanVehicle"
+data_path = "../datasets/UrbanVehicle"
 
 
 def load_graph():

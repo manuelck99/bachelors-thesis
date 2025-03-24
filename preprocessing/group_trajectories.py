@@ -1,8 +1,7 @@
 import json
 from collections import defaultdict
 
-
-data_path = "../../datasets/UrbanVehicle"
+data_path = "../datasets/UrbanVehicle"
 
 vehicle_trajectories_count = defaultdict(int)
 with open(f"{data_path}/trajectories.json", "r") as file:
@@ -16,7 +15,6 @@ for vehicle_id, count in vehicle_trajectories_count.items():
         multiple_trajectories_vehicles.append(vehicle_id)
 
 if multiple_trajectories_vehicles:
-    print("Following vehicles have multiple trajectories:")
-    print(multiple_trajectories_vehicles)
+    print("Following vehicles have multiple trajectories: ", multiple_trajectories_vehicles)
 else:
     print("No vehicle has multiple trajectories")

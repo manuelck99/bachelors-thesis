@@ -8,7 +8,7 @@ VEHICLE_ID is the ID of the vehicle.
 
 import json
 
-data_path = "../../datasets/UrbanVehicle/records"
+data_path = "../datasets/UrbanVehicle/records"
 
 vehicle_file_handles = dict()
 vehicle_file_handles["other"] = open(

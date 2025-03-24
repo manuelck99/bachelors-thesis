@@ -9,7 +9,7 @@ CAMERA_ID is the ID of the camera.
 import json
 
 
-data_path = "../../datasets/UrbanVehicle/records"
+data_path = "../datasets/UrbanVehicle/records"
 
 camera_file_handles = dict()
 with open(f"{data_path}/records.json", mode="r", encoding="utf-8") as file:
