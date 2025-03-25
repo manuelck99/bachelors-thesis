@@ -4,7 +4,7 @@ import math
 import faiss
 import numpy as np
 
-import bachelors_thesis.config as config
+import bachelors_thesis.config as cfg
 import bachelors_thesis.vehicle_record as vr
 
 logger = logging.getLogger(__name__)
@@ -47,11 +47,11 @@ def cluster_records(records: list[vr.VehicleRecord]) -> set[vr.VehicleRecordClus
                               record.has_license_plate()]
     license_plate_features_ids = [record.record_id for record in records if record.has_license_plate()]
 
-    vehicle_top_k_results = top_k_search(vehicle_features, vehicle_features_ids, config.K, config.DIMENSION,
-                                         config.NUMBER_OF_THREADS)
-    license_plate_top_k_results = top_k_search(license_plate_features, license_plate_features_ids, config.K,
-                                               config.DIMENSION,
-                                               config.NUMBER_OF_THREADS)
+    vehicle_top_k_results = top_k_search(vehicle_features, vehicle_features_ids, cfg.K, cfg.DIMENSION,
+                                         cfg.NUMBER_OF_THREADS)
+    license_plate_top_k_results = top_k_search(license_plate_features, license_plate_features_ids, cfg.K,
+                                               cfg.DIMENSION,
+                                               cfg.NUMBER_OF_THREADS)
 
     # Merging rough search results for vehicle features and license plate features
     records_dict = {record.record_id: record for record in records}
@@ -82,7 +82,7 @@ def cluster_records(records: list[vr.VehicleRecord]) -> set[vr.VehicleRecordClus
                     top_similarity_score = similarity_score
                     top_similarity_cluster = cluster
 
-            if top_similarity_score > config.SIMILARITY_THRESHOLD:
+            if top_similarity_score > cfg.SIMILARITY_THRESHOLD:
                 top_similarity_cluster.add_record(record)
             else:
                 cluster = vr.VehicleRecordCluster()
