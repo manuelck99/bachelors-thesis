@@ -8,6 +8,8 @@ dependencies:
   - networkx
   - conda-forge::pandas
   - conda-forge::geopandas
+  - conda-forge::osmnx
+  - shapely
   - scipy
   - conda-forge::scikit-learn
   - matplotlib
