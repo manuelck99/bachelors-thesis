@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from collections import defaultdict
+from typing import Optional, Dict, List
 
 import numpy as np
 
@@ -17,7 +18,7 @@ LICENSE_PLATE_TEXT = "plate_text"
 TIMESTAMP = "time"
 
 
-def load_records(paths: list[str]) -> list[VehicleRecord]:
+def load_records(paths: List[str]) -> List[VehicleRecord]:
     record_id = 0
     records = list()
     for path in paths:
@@ -35,13 +36,13 @@ def load_records(paths: list[str]) -> list[VehicleRecord]:
 
 class VehicleRecord:
     record_id: int
-    vehicle_id: int | None
+    vehicle_id: Optional[int]
     camera_id: int
     vehicle_feature: np.ndarray
-    license_plate_feature: np.ndarray | None
-    license_plate_text: str | None
+    license_plate_feature: Optional[np.ndarray]
+    license_plate_text: Optional[str]
     timestamp: int
-    cluster: VehicleRecordCluster | None
+    cluster: Optional[VehicleRecordCluster]
 
     def __init__(self, record: dict):
         self.record_id = record[RECORD_ID]
@@ -73,12 +74,12 @@ class VehicleRecord:
 
 
 class VehicleRecordCluster:
-    records: dict[int, VehicleRecord]
+    records: Dict[int, VehicleRecord]
     centroid_vehicle_feature: np.ndarray
     number_of_vehicle_features: int
     centroid_license_plate_feature: np.ndarray
     number_of_license_plate_features: int
-    license_plate_text_count: dict[str, int]
+    license_plate_text_count: Dict[str, int]
 
     def __init__(self, *, dimension: int = cfg.DIMENSION,
                  weight_vehicle_similarity: float = cfg.WEIGHT_VEHICLE_SIMILARITY,

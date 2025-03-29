@@ -1,5 +1,6 @@
 import logging
 import math
+from typing import Set, List
 
 import faiss
 import numpy as np
@@ -10,11 +11,11 @@ import bachelors_thesis.vehicle_record as vr
 logger = logging.getLogger(__name__)
 
 
-def top_k_search(features,
-                 features_ids,
-                 k,
-                 dimension,
-                 number_of_threads):
+def top_k_search(features: List[np.ndarray],
+                 features_ids: List[int],
+                 k: int,
+                 dimension: int,
+                 number_of_threads: int) -> np.ndarray:
     logger.debug("Creating vector database")
     db_features = np.vstack(features)
 
@@ -39,7 +40,7 @@ def top_k_search(features,
     return results
 
 
-def cluster_records(records: list[vr.VehicleRecord]) -> set[vr.VehicleRecordCluster]:
+def cluster_records(records: List[vr.VehicleRecord]) -> Set[vr.VehicleRecordCluster]:
     # Top K rough search
     vehicle_features = [record.vehicle_feature for record in records]
     vehicle_features_ids = [record.record_id for record in records]

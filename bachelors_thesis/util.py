@@ -1,10 +1,11 @@
 import base64
+from typing import Optional
 
 import Levenshtein as ls
 import numpy as np
 
 
-def feature_from_base64(f: str | None = None) -> np.ndarray | None:
+def feature_from_base64(f: Optional[str] = None) -> Optional[np.ndarray]:
     """
     Turns a base64 encoded string into a NumPy ``ndarray``. If *f*
     is ``None``, ``None`` is returned. Additionally, if the generated ``ndarray``

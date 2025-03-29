@@ -1,17 +1,18 @@
 import math
+from typing import Set, Tuple, Optional
 
 import bachelors_thesis.config as cfg
 import bachelors_thesis.vehicle_record as vr
 
-type Precision = float
-type Recall = float
-type F1Score = float
-type Expansion = float
+Precision = float
+Recall = float
+F1Score = float
+Expansion = float
 
 data_path = "datasets/UrbanVehicle/records/vehicles"
 
 
-def yu_ao_yan_evaluation(clusters: set[vr.VehicleRecordCluster]) -> tuple[Precision, Recall, F1Score, Expansion]:
+def yu_ao_yan_evaluation(clusters: Set[vr.VehicleRecordCluster]) -> Tuple[Precision, Recall, F1Score, Expansion]:
     vehicle_records_count = dict()
     for vehicle_id in range(cfg.NUMBER_OF_LABELLED_VEHICLES):
         with open(f"{data_path}/records-vehicle-{vehicle_id}.json", mode="r", encoding="utf-8") as file:
@@ -45,7 +46,8 @@ def yu_ao_yan_evaluation(clusters: set[vr.VehicleRecordCluster]) -> tuple[Precis
     return precision, recall, f1_score, expansion
 
 
-def find_cluster_of_vehicle(vehicle_id: int, clusters: set[vr.VehicleRecordCluster]) -> vr.VehicleRecordCluster | None:
+def find_cluster_of_vehicle(vehicle_id: int, clusters: Set[vr.VehicleRecordCluster]) -> Optional[
+    vr.VehicleRecordCluster]:
     max_number_of_records = -math.inf
     max_number_of_records_cluster = None
     for cluster in clusters:
