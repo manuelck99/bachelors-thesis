@@ -1,13 +1,17 @@
 name: bachelors-thesis
 dependencies:
-  - conda-forge::python=3.*.*
+  - conda-forge::python=3.12.*
   - conda-forge::pip
   - conda-forge::pytest
   - conda-forge::numpy
-  - pytorch::faiss-cpu
-  - pytorch::faiss-gpu
-  - conda-forge::networkx
-  - conda-forge::scipy
-  - conda-forge::scikit-learn
-  - conda-forge::matplotlib
-#  - Levenshtein
+  - pytorch::faiss-gpu=1.10.*
+  - conda-forge::networkx=3.4.*
+  - conda-forge::scipy=1.15.*
+  - conda-forge::scikit-learn=1.6.*
+  - conda-forge::matplotlib=3.10.*
+  - conda-forge::osmnx=2.0.*
+  - conda-forge::pandas=2.2.*
+  - conda-forge::geopandas=1.0.*
+  - conda-forge::shapely=2.0.*
+  - conda-forge::pyproj=3.7.*
+  - conda-forge::levenshtein
