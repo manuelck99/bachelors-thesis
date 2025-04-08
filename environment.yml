@@ -17,6 +17,7 @@ dependencies:
   - conda-forge::levenshtein=0.27.1
   - conda-forge::jupyterlab=4.3.6
   - conda-forge::libsqlite=3.49.1
+#  - mappymatch
 # libsqlite is needed, because the Jupyter server keeps crashing
 # See https://stackoverflow.com/questions/74837553/how-to-fix-a-mac-base-conda-environment-when-sqlite3-is-broken
 # conda install -c conda-forge libsqlite=3.49.1 --force-reinstall -y
