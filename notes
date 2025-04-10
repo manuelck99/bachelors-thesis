@@ -1,0 +1,48 @@
+Reverse-engineer GPS Coordinates:
+- Approximated through optimization (translation, scaling, rotation)
+- Should we use them:
+    + mappymatch can be used (avoid custom map matching implementation)
+    + OSMnx can be used
+    - OSMnx graph highly detailed
+
+Define Regions:
+- Based on camera coordinates
+- Regions are just the assignment of cameras to servers
+- Can we reduce regions from 1, 2, 4 to 1, 2, 3 maybe?
+- Auxiliary regions better chosen manually, since it's easier to see than to code
+  something (alternatively flood-algorithm until certain number of cameras are hit or polygon (convex-hull) approach)
+- Assign auxiliary regions to edge servers, so that they the total amount of records to handle
+  is roughly the same for all edge servers
+
+Ground Truth Trajectories:
+- Worry that they don't match the actual camera record trajectories (check that)
+- Maybe ignore them and run map matching on the camera records and use those as ground truth? (But then we could have used any Vehicle Re-ID dataset)
+- Some begin/end outside of records time interval (leave those out, but what about their vehicle records?,
+  in general what about vehicle records that don't have ground truth trajectories?)
+- There are annotated vehicle records in 1st hour, but no ground truth trajectories
+
+Map Matching:
+- Use mappymatch with reverse-engineered coordinates
+- Custom map matching (ChatGPT HMM + Dijkstra, actual paper like FMM, speed-up through C-bindings
+  and/or multi-threading/-processing in C/Python and/or GPU-acceleration, offline/online Dijkstra potentially threshold-constrained)
+
+OSMnx:
+- Should I use simplified graph or complete? (Probably simplified)
+- Should I consolidate intersections? (Probably not, but there are problems that can arise, look at 4 intersection problem)
+- Try consolidation and see what happens
+
+Split up Dataset:
+- Time interval approach won't work, because first 4h (of 12) contain 2 million records, but only like 40-50 ground truth trajectory starts/ends
+- I really think we should use the approach, where we randomly leave out records (except annotated ones) or the one above where we use map matched
+  vehicle record trajectories as ground truths
+
+Road Graph:
+- Neither road graph (dataset or OSMnx) is strongly-connected and dataset one not even weakly-connected and has self-loops
+- Only use strongly-connected subgraph without self-loops to mitigate later issues of finding paths
+- Dataset graph can't use simplification (which nodes are shape-defining, LineString's only care about shape not logical connection for intersections)
+  and consolidation (how to reverse that to display trajectories) without lots of effort and even then unsure, OSMnx should
+  probably only use simplified one
+
+Matching cameras to intersections:
+- Some cameras quite far from intersections, either still just match them to closest intersection or maybe get rid of cameras
+  (and their records) that aren't very close to intersections
