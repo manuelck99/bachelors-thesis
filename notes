@@ -1,3 +1,5 @@
+11. April 2025:
+
 Reverse-engineer GPS Coordinates:
 - Approximated through optimization (translation, scaling, rotation)
 - Should we use them:
@@ -46,3 +48,8 @@ Road Graph:
 Matching cameras to intersections:
 - Some cameras quite far from intersections, either still just match them to closest intersection or maybe get rid of cameras
   (and their records) that aren't very close to intersections
+
+17. April 2025:
+Define Regions:
+- Flooding algorithm works well, but some crucial cameras are left out, because they are far away from border, but there probably are vehicles captured there that cross
+  region borders (see region_partitioning.ipynb big intersection, maybe add them in)
