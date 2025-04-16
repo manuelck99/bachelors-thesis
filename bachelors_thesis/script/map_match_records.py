@@ -16,7 +16,10 @@ import json
 import os
 import sys
 
+import matplotlib.pyplot as plt
 import networkx as nx
+import numpy as np
+import osmnx as ox
 import pandas as pd
 from mappymatch.constructs.trace import Trace
 from mappymatch.maps.nx.nx_map import NxMap
@@ -60,7 +63,7 @@ def is_path_valid(edges, road_graph: nx.MultiDiGraph) -> int:
             return 0
 
     prev_d = edges[0][1]
-    for i, (o, d, k) in enumerate(edges[1:]):
+    for i, (o, d, _) in enumerate(edges[1:]):
         if prev_d != o:
             return i + 1
         prev_d = d
@@ -127,30 +130,32 @@ if __name__ == "__main__":
         trajectory["path_nodes"] = path_nodes
         trajectory["path_edges"] = path_edges
 
-    # # 9.
-    # for trajectory in trajectories:
-    #     vehicle_id = trajectory["vehicle_id"]
-    #     path_nodes = trajectory["path_nodes"]
-    #
-    #     ox.plot_graph_route(
-    #         road_graph,
-    #         path_nodes,
-    #         figsize=(10, 10),
-    #         node_size=10,
-    #         show=False,
-    #         save=True,
-    #         filepath=f"{DATA_PATH}/trajectory/trajectory-{vehicle_id}.png"
-    #     )
-    #
-    #     fig, ax = plt.subplots(1, 1, figsize=(10, 10))
-    #     pos = {node: (road_graph_og.nodes[node]["x"], road_graph_og.nodes[node]["y"]) for node in road_graph_og.nodes()}
-    #     nx.draw_networkx_edges(road_graph_og, pos, arrows=False, ax=ax)
-    #
-    #     trace = trajectory["trace"]
-    #     trace = np.array(trace)
-    #     ax.scatter(trace[:, 0], trace[:, 1], s=10, c="blue")
-    #
-    #     fig.savefig(f"{DATA_PATH}/trajectory/records-{vehicle_id}.png")
+    # 9.
+    for trajectory in trajectories:
+        vehicle_id = trajectory["vehicle_id"]
+        path_nodes = trajectory["path_nodes"]
+
+        fig, ax = ox.plot_graph_route(
+            road_graph,
+            path_nodes,
+            figsize=(10, 10),
+            node_size=10,
+            show=False,
+            save=True,
+            filepath=f"{DATA_PATH}/trajectory/trajectory-{vehicle_id}.png"
+        )
+        plt.close(fig)
+
+        fig, ax = plt.subplots(1, 1, figsize=(10, 10))
+        pos = {node: (road_graph_og.nodes[node]["x"], road_graph_og.nodes[node]["y"]) for node in road_graph_og.nodes()}
+        nx.draw_networkx_edges(road_graph_og, pos, arrows=False, ax=ax)
+
+        trace = trajectory["trace"]
+        trace = np.array(trace)
+        ax.scatter(trace[:, 0], trace[:, 1], s=10, c="blue")
+
+        fig.savefig(f"{DATA_PATH}/trajectory/records-{vehicle_id}.png")
+        plt.close(fig)
     #
     # for trajectory in trajectories:
     #     del trajectory["trace"]

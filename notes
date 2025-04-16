@@ -53,3 +53,15 @@ Matching cameras to intersections:
 Define Regions:
 - Flooding algorithm works well, but some crucial cameras are left out, because they are far away from border, but there probably are vehicles captured there that cross
   region borders (see region_partitioning.ipynb big intersection, maybe add them in)
+
+Consolidation:
+- Consolidation seems to mess with mappymatch, since some paths aren't continuous (maybe use Dijkstra instead of mappymatch?)
+
+Map Matching
+- mappymatch leaves out some records for annotated vehicles during map matching (maybe tune it better and read paper how it works)
+- There are clearly missing parts of the ground truth trajectories, since the records say there should be more
+- Perhaps Dijkstra better, also would only need to precompute Dijkstra for camera nodes not all nodes
+
+Across-Region Merging:
+- How to know in which direction borders are crossed?
+- Across-Region Merging seems a whole lot more complex implemented then I understood it
