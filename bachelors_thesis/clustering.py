@@ -5,8 +5,8 @@ from typing import Set, List
 import faiss
 import numpy as np
 
-import bachelors_thesis.config as cfg
-import bachelors_thesis.vehicle_record as vr
+import config as cfg
+import vehicle_record as vr
 
 logger = logging.getLogger(__name__)
 

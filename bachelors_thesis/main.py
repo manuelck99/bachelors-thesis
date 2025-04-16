@@ -3,14 +3,14 @@ import os
 import random
 import time
 
-import bachelors_thesis.clustering as clst
-import bachelors_thesis.config as cfg
-import bachelors_thesis.evaluation as eval
-import bachelors_thesis.vehicle_record as vr
+import clustering as clst
+import config as cfg
+import evaluation as eval
+import vehicle_record as vr
 
 logger = logging.getLogger(__name__)
 
-dataset_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "./datasets/UrbanVehicle/records/vehicles")
+dataset_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../data/dataset/records/vehicles")
 
 random.seed(0)
 

@@ -1,15 +1,16 @@
 import math
+import os.path
 from typing import Set, Tuple, Optional
 
-import bachelors_thesis.config as cfg
-import bachelors_thesis.vehicle_record as vr
+import config as cfg
+import vehicle_record as vr
 
 Precision = float
 Recall = float
 F1Score = float
 Expansion = float
 
-data_path = "datasets/UrbanVehicle/records/vehicles"
+data_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../data/dataset/records/vehicles")
 
 
 def yu_ao_yan_evaluation(clusters: Set[vr.VehicleRecordCluster]) -> Tuple[Precision, Recall, F1Score, Expansion]:

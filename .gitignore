@@ -1,9 +1,12 @@
-.idea
-datasets
+.idea/
 __pycache__/
 cache/
+dataset/
 
 *.pickle
-*.xml
 *.csv
 *.svg
+*.png
+*.json
+
+!.gitkeep

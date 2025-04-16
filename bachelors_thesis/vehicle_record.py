@@ -6,8 +6,8 @@ from typing import Optional, Dict, List
 
 import numpy as np
 
-import bachelors_thesis.config as cfg
-import bachelors_thesis.util as util
+import config as cfg
+import util as util
 
 RECORD_ID = "record_id"
 VEHICLE_ID = "vehicle_id"
