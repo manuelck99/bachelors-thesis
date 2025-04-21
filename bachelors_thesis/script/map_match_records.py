@@ -72,9 +72,9 @@ def is_path_valid(edges, road_graph: nx.MultiDiGraph) -> int:
 
 
 if __name__ == "__main__":
-    road_graph = util.load_graph(f"{DATA_PATH}/road_graph/road_graph_ox_sim_con_35_nsl_sc.pickle")
+    road_graph = util.load_graph(f"{DATA_PATH}/road_graph/road_graph_ox_nsl_sim_sc.pickle")
     road_graph_og = util.load_graph(f"{DATA_PATH}/road_graph/road_graph_ox_nsl.pickle")
-    cameras_info = util.load(f"{DATA_PATH}/road_graph/road_graph_ox_sim_con_35_nsl_sc_cameras.pickle")
+    cameras_info = util.load(f"{DATA_PATH}/road_graph/road_graph_ox_nsl_sim_sc_cameras.pickle")
 
     trajectories = list()
     for vehicle_id in range(NUMBER_OF_ANNOTATED_VEHICLES):
