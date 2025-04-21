@@ -65,3 +65,12 @@ Map Matching
 Across-Region Merging:
 - How to know in which direction borders are crossed?
 - Across-Region Merging seems a whole lot more complex implemented then I understood it
+
+25. April 2025:
+Across-Region Merging:
+- Edge Servers only send trajectories to central server that start/end in neighbouring auxiliary regions
+- For each auxiliary region trajectory only do the across-region algorithm for those that actually cross region borders (makes sure we know the directionality of crossing)
+- For crossing from i to j find all region trajectories starting in i and ending in i-j and all those starting in i-j and ending in j.
+  Then look for all auxiliary region trajectories crossing the border from i to j. Then for each auxiliary region trajectory, find
+  the most similar region trajectories and then go through them and calculate how many records they have in common and assign a score for each pairing of i, i-j and i-j, j
+  trajectories. Merge those i and j with i-j with highest score.
