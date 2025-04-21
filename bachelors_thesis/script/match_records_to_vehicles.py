@@ -7,19 +7,33 @@ VEHICLE_ID is the ID of the vehicle.
 """
 
 import json
-import os
-
-data_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../data/dataset/records")
+import os.path
+from argparse import ArgumentParser
 
 if __name__ == "__main__":
+    parser = ArgumentParser()
+    parser.add_argument(
+        "-i", "--input-path",
+        type=str,
+        required=True,
+        help="Path to the input records file"
+    )
+    parser.add_argument(
+        "-o", "--output-path",
+        type=str,
+        required=True,
+        help="Path to the output vehicles folder"
+    )
+    args = parser.parse_args()
+
     vehicle_file_handles = dict()
     vehicle_file_handles["other"] = open(
-        f"{data_path}/vehicles/records-vehicle-other.json",
+        os.path.join(args.output_path, f"records-vehicle-other.json"),
         mode="w",
         encoding="utf-8"
     )
 
-    with open(f"{data_path}/records.json", mode="r", encoding="utf-8") as file:
+    with open(args.input_path, mode="r", encoding="utf-8") as file:
         for line in file:
             record = json.loads(line)
 
@@ -27,7 +41,7 @@ if __name__ == "__main__":
                 if record["vehicle_id"] in vehicle_file_handles:
                     vehicle_file_handles[record["vehicle_id"]].write(line)
                 else:
-                    path = f"{data_path}/vehicles/records-vehicle-{record['vehicle_id']}.json"
+                    path = os.path.join(args.output_path, f"records-vehicle-{record['vehicle_id']}.json")
                     f = open(path, mode="w", encoding="utf-8")
                     f.write(line)
                     vehicle_file_handles[record["vehicle_id"]] = f
