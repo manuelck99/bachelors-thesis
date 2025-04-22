@@ -1,18 +1,18 @@
 import logging
 import math
-from typing import Set, List
+import time
 
 import faiss
 import numpy as np
 
-import config as cfg
-import vehicle_record as vr
+from config import K, DIMENSION, NUMBER_OF_THREADS, SIMILARITY_THRESHOLD
+from vehicle_record import VehicleRecord, VehicleRecordCluster
 
 logger = logging.getLogger(__name__)
 
 
-def top_k_search(features: List[np.ndarray],
-                 features_ids: List[int],
+def top_k_search(features: list[np.ndarray],
+                 features_ids: list[int],
                  k: int,
                  dimension: int,
                  number_of_threads: int) -> np.ndarray:
@@ -22,17 +22,24 @@ def top_k_search(features: List[np.ndarray],
     logger.debug("Normalizing vector database")
     faiss.normalize_L2(db_features)
 
+    use_gpu = faiss.get_num_gpus() > 0
+
     logger.debug("Building FAISS index")
-    features_index = faiss.IndexIDMap(faiss.IndexFlatIP(dimension))
+    features_index = faiss.IndexFlatIP(dimension)
+    if use_gpu:
+        logger.debug("Using GPU index")
+        features_index = faiss.index_cpu_to_all_gpus(features_index)
+    features_index = faiss.IndexIDMap(features_index)
+
+    if not use_gpu:
+        logger.debug("Setting number of threads for CPU index")
+        if number_of_threads > faiss.omp_get_max_threads():
+            faiss.omp_set_num_threads(faiss.omp_get_max_threads())
+        else:
+            faiss.omp_set_num_threads(number_of_threads)
 
     logger.debug("Adding vector database to FAISS index")
     features_index.add_with_ids(db_features, features_ids)
-
-    logger.debug("Setting number of threads")
-    if number_of_threads > faiss.omp_get_max_threads():
-        faiss.omp_set_num_threads(faiss.omp_get_max_threads())
-    else:
-        faiss.omp_set_num_threads(number_of_threads)
 
     logger.debug("Similarity searching vector database")
     _, results = features_index.search(db_features, k)
@@ -40,7 +47,7 @@ def top_k_search(features: List[np.ndarray],
     return results
 
 
-def cluster_records(records: List[vr.VehicleRecord]) -> Set[vr.VehicleRecordCluster]:
+def cluster_records(records: list[VehicleRecord]) -> set[VehicleRecordCluster]:
     # Top K rough search
     vehicle_features = [record.vehicle_feature for record in records]
     vehicle_features_ids = [record.record_id for record in records]
@@ -48,11 +55,14 @@ def cluster_records(records: List[vr.VehicleRecord]) -> Set[vr.VehicleRecordClus
                               record.has_license_plate()]
     license_plate_features_ids = [record.record_id for record in records if record.has_license_plate()]
 
-    vehicle_top_k_results = top_k_search(vehicle_features, vehicle_features_ids, cfg.K, cfg.DIMENSION,
-                                         cfg.NUMBER_OF_THREADS)
-    license_plate_top_k_results = top_k_search(license_plate_features, license_plate_features_ids, cfg.K,
-                                               cfg.DIMENSION,
-                                               cfg.NUMBER_OF_THREADS)
+    t0 = time.time_ns()
+    vehicle_top_k_results = top_k_search(vehicle_features, vehicle_features_ids, K, DIMENSION,
+                                         NUMBER_OF_THREADS)
+    license_plate_top_k_results = top_k_search(license_plate_features, license_plate_features_ids, K,
+                                               DIMENSION,
+                                               NUMBER_OF_THREADS)
+    t1 = time.time_ns()
+    logger.info(f"Top K search time [ms]: {(t1 - t0) / 1000 / 1000}")
 
     # Merging rough search results for vehicle features and license plate features
     records_dict = {record.record_id: record for record in records}
@@ -66,12 +76,13 @@ def cluster_records(records: List[vr.VehicleRecord]) -> Set[vr.VehicleRecordClus
         candidate_records_dict[record_id] = candidate_records_dict[record_id].union(s)
 
     # Clustering
+    t0 = time.time_ns()
     for record_id, candidate_records in candidate_records_dict.items():
         record = records_dict[record_id]
         candidate_clusters = {record.cluster for record in candidate_records if record.has_assigned_cluster()}
 
         if len(candidate_clusters) == 0:
-            cluster = vr.VehicleRecordCluster()
+            cluster = VehicleRecordCluster()
             cluster.add_record(record)
         else:
             top_similarity_score = -math.inf
@@ -83,11 +94,13 @@ def cluster_records(records: List[vr.VehicleRecord]) -> Set[vr.VehicleRecordClus
                     top_similarity_score = similarity_score
                     top_similarity_cluster = cluster
 
-            if top_similarity_score > cfg.SIMILARITY_THRESHOLD:
+            if top_similarity_score > SIMILARITY_THRESHOLD:
                 top_similarity_cluster.add_record(record)
             else:
-                cluster = vr.VehicleRecordCluster()
+                cluster = VehicleRecordCluster()
                 cluster.add_record(record)
+    t1 = time.time_ns()
+    logger.info(f"Clustering execution time [ms]: {(t1 - t0) / 1000 / 1000}")
 
     clusters = {record.cluster for record in records}
     return clusters

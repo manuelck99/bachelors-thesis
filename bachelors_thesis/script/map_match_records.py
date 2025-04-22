@@ -77,7 +77,7 @@ if __name__ == "__main__":
     cameras_info = util.load(f"{DATA_PATH}/road_graph/road_graph_ox_nsl_sim_sc_cameras.pickle")
 
     trajectories = list()
-    for vehicle_id in range(NUMBER_OF_ANNOTATED_VEHICLES):
+    for vehicle_id in range(43, 46):
         records = list()
 
         # 1.

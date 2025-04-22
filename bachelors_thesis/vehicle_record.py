@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import json
 from collections import defaultdict
-from typing import Optional, Dict, List
 
+import networkx as nx
 import numpy as np
+import pandas as pd
+from mappymatch.constructs.trace import Trace
 
-import config as cfg
-import util as util
+from config import DIMENSION, WEIGHT_VEHICLE_SIMILARITY, WEIGHT_LICENSE_PLATE_SIMILARITY
+from util import feature_from_base64, normalize, calculate_similarity, edit_distance_gain, clip
 
 RECORD_ID = "record_id"
 VEHICLE_ID = "vehicle_id"
@@ -18,31 +20,29 @@ LICENSE_PLATE_TEXT = "plate_text"
 TIMESTAMP = "time"
 
 
-def load_records(paths: List[str]) -> List[VehicleRecord]:
+def load_records(record_path: str) -> list[VehicleRecord]:
     record_id = 0
     records = list()
-    for path in paths:
-        with open(path, mode="r", encoding="utf-8") as file:
-            for line in file:
-                record = json.loads(line)
-                record[RECORD_ID] = record_id
-                record[VEHICLE_FEATURE] = util.feature_from_base64(record[VEHICLE_FEATURE])
-                record[LICENSE_PLATE_FEATURE] = util.feature_from_base64(record[LICENSE_PLATE_FEATURE])
-                records.append(VehicleRecord(record))
-                record_id += 1
-
+    with open(record_path, mode="r", encoding="utf-8") as file:
+        for line in file:
+            record = json.loads(line)
+            record[RECORD_ID] = record_id
+            record[VEHICLE_FEATURE] = feature_from_base64(record[VEHICLE_FEATURE])
+            record[LICENSE_PLATE_FEATURE] = feature_from_base64(record[LICENSE_PLATE_FEATURE])
+            records.append(VehicleRecord(record))
+            record_id += 1
     return records
 
 
 class VehicleRecord:
     record_id: int
-    vehicle_id: Optional[int]
+    vehicle_id: int | None
     camera_id: int
     vehicle_feature: np.ndarray
-    license_plate_feature: Optional[np.ndarray]
-    license_plate_text: Optional[str]
+    license_plate_feature: np.ndarray | None
+    license_plate_text: str | None
     timestamp: int
-    cluster: Optional[VehicleRecordCluster]
+    cluster: VehicleRecordCluster | None
 
     def __init__(self, record: dict):
         self.record_id = record[RECORD_ID]
@@ -63,6 +63,9 @@ class VehicleRecord:
     def has_license_plate(self) -> bool:
         return self.license_plate_feature is not None
 
+    def is_annotated(self) -> bool:
+        return self.vehicle_id is not None
+
     def __eq__(self, other):
         if isinstance(other, VehicleRecord):
             return self.record_id == other.record_id
@@ -74,16 +77,16 @@ class VehicleRecord:
 
 
 class VehicleRecordCluster:
-    records: Dict[int, VehicleRecord]
+    records: dict[int, VehicleRecord]
     centroid_vehicle_feature: np.ndarray
     number_of_vehicle_features: int
     centroid_license_plate_feature: np.ndarray
     number_of_license_plate_features: int
-    license_plate_text_count: Dict[str, int]
+    license_plate_text_count: dict[str, int]
 
-    def __init__(self, *, dimension: int = cfg.DIMENSION,
-                 weight_vehicle_similarity: float = cfg.WEIGHT_VEHICLE_SIMILARITY,
-                 weight_license_plate_similarity: float = cfg.WEIGHT_LICENSE_PLATE_SIMILARITY):
+    def __init__(self, *, dimension: int = DIMENSION,
+                 weight_vehicle_similarity: float = WEIGHT_VEHICLE_SIMILARITY,
+                 weight_license_plate_similarity: float = WEIGHT_LICENSE_PLATE_SIMILARITY):
         self.records = dict()
         self.centroid_vehicle_feature = np.zeros(dimension, dtype=np.float32)
         self.number_of_vehicle_features = 0
@@ -103,28 +106,42 @@ class VehicleRecordCluster:
             self.license_plate_text_count[record.license_plate_text] += 1
 
             # Running normalized mean
-            self.centroid_license_plate_feature += (util.normalize(
+            self.centroid_license_plate_feature += (normalize(
                 record.license_plate_feature) - self.centroid_license_plate_feature) / self.number_of_license_plate_features
 
         # Running normalized mean
-        self.centroid_vehicle_feature += (util.normalize(
+        self.centroid_vehicle_feature += (normalize(
             record.vehicle_feature) - self.centroid_vehicle_feature) / self.number_of_vehicle_features
 
     def calculate_similarity_to_record(self, record: VehicleRecord) -> float:
-        vehicle_similarity = util.calculate_similarity(self.centroid_vehicle_feature, record.vehicle_feature)
+        vehicle_similarity = calculate_similarity(self.centroid_vehicle_feature, record.vehicle_feature)
         if self.number_of_license_plate_features != 0 and record.has_license_plate():
-            license_plate_similarity = util.calculate_similarity(self.centroid_license_plate_feature,
-                                                                 record.license_plate_feature)
+            license_plate_similarity = calculate_similarity(self.centroid_license_plate_feature,
+                                                            record.license_plate_feature)
             centroid_license_plate_text = self.calculate_centroid_license_plate_text()
 
-            return util.clip(self.weight_vehicle_similarity * vehicle_similarity
-                             + self.weight_license_plate_similarity * license_plate_similarity
-                             + util.edit_distance_gain(centroid_license_plate_text, record.license_plate_text))
+            return clip(self.weight_vehicle_similarity * vehicle_similarity
+                        + self.weight_license_plate_similarity * license_plate_similarity
+                        + edit_distance_gain(centroid_license_plate_text, record.license_plate_text))
         else:
-            return util.clip(vehicle_similarity)
+            return clip(vehicle_similarity)
 
     def calculate_centroid_license_plate_text(self) -> str:
         return max(self.license_plate_text_count, key=self.license_plate_text_count.get)
 
     def size(self) -> int:
         return len(self.records)
+
+    def get_trace(self, road_graph: nx.MultiDiGraph, cameras_info: dict) -> Trace:
+        records = list(self.records.values())
+        records.sort(key=lambda r: r.timestamp)
+
+        trace = list()
+        for record in records:
+            camera_id = record.camera_id
+            camera = cameras_info[camera_id]
+            node_id = camera["node_id"]
+            trace.append([road_graph.nodes[node_id]["x"], road_graph.nodes[node_id]["y"]])
+
+        trace_df = pd.DataFrame(trace, columns=["longitude", "latitude"])
+        return Trace.from_dataframe(trace_df, lon_column="longitude", lat_column="latitude", xy=True)

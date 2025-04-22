@@ -17,7 +17,13 @@ dependencies:
   - conda-forge::levenshtein=0.27.1
   - conda-forge::jupyterlab=4.3.6
   - conda-forge::libsqlite=3.49.1
-#  - mappymatch
+
 # libsqlite is needed, because the Jupyter server keeps crashing
 # See https://stackoverflow.com/questions/74837553/how-to-fix-a-mac-base-conda-environment-when-sqlite3-is-broken
 # conda install -c conda-forge libsqlite=3.49.1 --force-reinstall -y
+#
+# faiss-gpu needs to be similarly installed
+# conda install -c pytorch -c nvidia faiss-gpu=1.10.0 --force-reinstall -y
+#
+# mappymatch needs to be installed through pip, since it's not available as a conda package
+# pip install mappymatch

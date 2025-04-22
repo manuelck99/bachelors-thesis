@@ -66,13 +66,13 @@ def feature_from_base64(f: str | None = None) -> np.ndarray | None:
 
     if f is None:
         return None
+
+    f = np.frombuffer(base64.b64decode(f), dtype=np.float32)
+    if not np.any(f):
+        # Feature is all zeros
+        return None
     else:
-        f = np.frombuffer(base64.b64decode(f), dtype=np.float32)
-        if not np.any(f):
-            # Feature is all zeros
-            return None
-        else:
-            return f
+        return f
 
 
 def calculate_similarity(f1: np.ndarray, f2: np.ndarray) -> float:
