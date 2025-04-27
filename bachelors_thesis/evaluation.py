@@ -2,7 +2,6 @@ import math
 import os.path
 from collections import defaultdict
 
-from config import NUMBER_OF_LABELLED_VEHICLES
 from vehicle_record import VehicleRecord, VehicleRecordCluster
 
 Precision = float
@@ -20,28 +19,28 @@ def yu_ao_yan_evaluation(records: list[VehicleRecord], clusters: set[VehicleReco
         if record.is_annotated():
             vehicle_records_count[record.vehicle_id] += 1
 
-    # TODO: Replace NUMBER_OF_LABELLED_VEHICLES with len(vehicle_records_count) and refactor where necessary
     precision = 0.0
     recall = 0.0
-    for vehicle_id in range(NUMBER_OF_LABELLED_VEHICLES):
+    for vehicle_id in vehicle_records_count.keys():
         cluster_of_vehicle = find_cluster_of_vehicle(vehicle_id, clusters)
         number_of_records_of_vehicle_in_cluster = calculate_number_of_records_of_vehicle_in_cluster(vehicle_id,
                                                                                                     cluster_of_vehicle)
         precision += number_of_records_of_vehicle_in_cluster / len(cluster_of_vehicle.records)
         recall += number_of_records_of_vehicle_in_cluster / vehicle_records_count[vehicle_id]
 
-    precision /= NUMBER_OF_LABELLED_VEHICLES
-    recall /= NUMBER_OF_LABELLED_VEHICLES
+    number_of_annotated_vehicles = len(vehicle_records_count)
+    precision /= number_of_annotated_vehicles
+    recall /= number_of_annotated_vehicles
     f1_score = (precision * recall) / (precision + recall)
 
     expansion = 0.0
-    for vehicle_id in range(NUMBER_OF_LABELLED_VEHICLES):
+    for vehicle_id in vehicle_records_count.keys():
         for cluster in clusters:
             number_of_records_of_vehicle_in_cluster = calculate_number_of_records_of_vehicle_in_cluster(vehicle_id,
                                                                                                         cluster)
             if number_of_records_of_vehicle_in_cluster != 0:
                 expansion += 1.0
-    expansion /= NUMBER_OF_LABELLED_VEHICLES
+    expansion /= number_of_annotated_vehicles
 
     return precision, recall, f1_score, expansion
 

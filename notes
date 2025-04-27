@@ -58,19 +58,34 @@ Consolidation:
 - Consolidation seems to mess with mappymatch, since some paths aren't continuous (maybe use Dijkstra instead of mappymatch?)
 
 Map Matching
+- Turn vehicle records into ground truth trajectories (either mappymatch or Dijkstra or custom)
 - mappymatch leaves out some records for annotated vehicles during map matching (maybe tune it better and read paper how it works)
 - There are clearly missing parts of the ground truth trajectories, since the records say there should be more
-- Perhaps Dijkstra better, also would only need to precompute Dijkstra for camera nodes not all nodes
+- Perhaps Dijkstra better, also would only need to precompute Dijkstra for camera nodes not all nodes or maybe custom Map Matching algorithm
++ Stick to mappymatch see what happens (when bad use online Dijkstra)
 
 Across-Region Merging:
+- What to do when border trajectory and candidate across-region trajectory don't have records in common? (Some kind of time and space metric between start/end of border
+  trajectory and end/start of across-region trajectory)
 - How to know in which direction borders are crossed?
+- Can a border trajectory be involved in multiple across-region trajectories?
 - Across-Region Merging seems a whole lot more complex implemented then I understood it
-
-25. April 2025:
-Across-Region Merging:
-- Edge Servers only send trajectories to central server that start/end in neighbouring auxiliary regions
-- For each auxiliary region trajectory only do the across-region algorithm for those that actually cross region borders (makes sure we know the directionality of crossing)
-- For crossing from i to j find all region trajectories starting in i and ending in i-j and all those starting in i-j and ending in j.
++ Edge servers only send trajectories that start/end in auxiliary regions
++ Use only trajectories recovered in auxiliary regions that actually cross border (makes sure that we always know the direction in which border is crossed and which region trajectories to compare to)
++ When no overlap use Dijkstra to find time and distance of shortest path between region trajectory start/end and auxiliary region trajectory end/start
++ Edge Servers only send trajectories to central server that start/end in neighbouring auxiliary regions
++ For each auxiliary region trajectory only do the across-region algorithm for those that actually cross region borders (makes sure we know the directionality of crossing)
++ For crossing from i to j find all region trajectories starting in i and ending in i-j and all those starting in i-j and ending in j.
   Then look for all auxiliary region trajectories crossing the border from i to j. Then for each auxiliary region trajectory, find
   the most similar region trajectories and then go through them and calculate how many records they have in common and assign a score for each pairing of i, i-j and i-j, j
   trajectories. Merge those i and j with i-j with highest score.
+
+Compound AI:
+- Feature extraction
+- Clustering (unsupervised learning)
+- Future work (graph, probabilistic, etc.)
+
+TODO:
+- Trajectory-Metrics (LCSS, EDR, STLC?)
+- Research Communication-Protocols
+- Distributed Version (try incorporating Communication-Protocols already)

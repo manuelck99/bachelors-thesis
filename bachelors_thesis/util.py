@@ -4,6 +4,7 @@ from typing import Any
 
 import networkx as nx
 import numpy as np
+import pandas as pd
 from Levenshtein import distance
 from pyproj import Transformer
 
@@ -134,3 +135,16 @@ def edit_distance_gain(s1: str, s2: str) -> float:
         return -0.05
     else:
         return -0.1
+
+
+def get_path(road_graph: nx.MultiDiGraph, path_df: pd.DataFrame) -> list[tuple[int, int, int]] | None:
+    edges = list()
+    for _, (o, d, k) in path_df[["origin_junction_id", "destination_junction_id", "road_key"]].iterrows():
+        edges.append((o, d, k))
+        if not road_graph.has_edge(o, d, k):
+            return None
+
+    if all(map(lambda e1, e2: e1[1] == e2[0], edges, edges[1:])):
+        return edges
+    else:
+        return None

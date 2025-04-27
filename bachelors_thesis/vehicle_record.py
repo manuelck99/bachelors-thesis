@@ -83,6 +83,9 @@ class VehicleRecordCluster:
     centroid_license_plate_feature: np.ndarray
     number_of_license_plate_features: int
     license_plate_text_count: dict[str, int]
+    weight_vehicle_similarity: float
+    weight_license_plate_similarity: float
+    path: list[tuple[int, int, int]] | None
 
     def __init__(self, *, dimension: int = DIMENSION,
                  weight_vehicle_similarity: float = WEIGHT_VEHICLE_SIMILARITY,
@@ -95,6 +98,7 @@ class VehicleRecordCluster:
         self.license_plate_text_count = defaultdict(int)
         self.weight_vehicle_similarity = weight_vehicle_similarity
         self.weight_license_plate_similarity = weight_license_plate_similarity
+        self.path = None
 
     def add_record(self, record: VehicleRecord):
         self.records[record.record_id] = record
@@ -145,3 +149,6 @@ class VehicleRecordCluster:
 
         trace_df = pd.DataFrame(trace, columns=["longitude", "latitude"])
         return Trace.from_dataframe(trace_df, lon_column="longitude", lat_column="latitude", xy=True)
+
+    def has_path(self) -> bool:
+        return self.path is not None and len(self.path) > 0

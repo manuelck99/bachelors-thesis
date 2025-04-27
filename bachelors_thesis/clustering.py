@@ -13,16 +13,16 @@ logger = logging.getLogger(__name__)
 
 def top_k_search(features: list[np.ndarray],
                  features_ids: list[int],
+                 *,
                  k: int,
                  dimension: int,
-                 number_of_threads: int) -> np.ndarray:
+                 number_of_threads: int,
+                 use_gpu=False) -> np.ndarray:
     logger.debug("Creating vector database")
     db_features = np.vstack(features)
 
     logger.debug("Normalizing vector database")
     faiss.normalize_L2(db_features)
-
-    use_gpu = faiss.get_num_gpus() > 0
 
     logger.debug("Building FAISS index")
     features_index = faiss.IndexFlatIP(dimension)
@@ -47,7 +47,7 @@ def top_k_search(features: list[np.ndarray],
     return results
 
 
-def cluster_records(records: list[VehicleRecord]) -> set[VehicleRecordCluster]:
+def cluster_records(records: list[VehicleRecord], *, use_gpu=False) -> set[VehicleRecordCluster]:
     # Top K rough search
     vehicle_features = [record.vehicle_feature for record in records]
     vehicle_features_ids = [record.record_id for record in records]
@@ -56,11 +56,11 @@ def cluster_records(records: list[VehicleRecord]) -> set[VehicleRecordCluster]:
     license_plate_features_ids = [record.record_id for record in records if record.has_license_plate()]
 
     t0 = time.time_ns()
-    vehicle_top_k_results = top_k_search(vehicle_features, vehicle_features_ids, K, DIMENSION,
-                                         NUMBER_OF_THREADS)
-    license_plate_top_k_results = top_k_search(license_plate_features, license_plate_features_ids, K,
-                                               DIMENSION,
-                                               NUMBER_OF_THREADS)
+    vehicle_top_k_results = top_k_search(vehicle_features, vehicle_features_ids, k=K, dimension=DIMENSION,
+                                         number_of_threads=NUMBER_OF_THREADS, use_gpu=use_gpu)
+    license_plate_top_k_results = top_k_search(license_plate_features, license_plate_features_ids, k=K,
+                                               dimension=DIMENSION, number_of_threads=NUMBER_OF_THREADS,
+                                               use_gpu=use_gpu)
     t1 = time.time_ns()
     logger.info(f"Top K search time [ms]: {(t1 - t0) / 1000 / 1000}")
 

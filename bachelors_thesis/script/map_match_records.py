@@ -60,7 +60,7 @@ def get_path(path_df: pd.DataFrame) -> (list[int], list[tuple[int, int, int]]):
 def is_path_valid(edges, road_graph: nx.MultiDiGraph) -> int:
     for o, d, k in edges:
         if not road_graph.has_edge(o, d, k):
-            return 0
+            return 1
 
     prev_d = edges[0][1]
     for i, (o, d, _) in enumerate(edges[1:]):
