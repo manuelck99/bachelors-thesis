@@ -1,12 +1,18 @@
+from __future__ import annotations
+
 import base64
 import pickle
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 import networkx as nx
 import numpy as np
 import pandas as pd
 from Levenshtein import distance
+from mappymatch.constructs.trace import Trace
 from pyproj import Transformer
+
+if TYPE_CHECKING:
+    from vehicle_record import VehicleRecord
 
 OPT_PARAMS: list[float] = [-4.25994981e-06, -8.74119271e-06, 8.11700876e-06, -3.95042166e-06, 1.14014210e+02,
                            2.26438070e+01]
@@ -16,6 +22,13 @@ EPSG_32650: str = "EPSG:32650"
 
 
 def xy_to_epsg4326(xy_points: np.ndarray) -> np.ndarray:
+    """
+    Transforms *xy_points* from unknown projection back into EPSG:4326 coordinates.
+
+    :param xy_points: NumPy ``ndarray`` of points in unknown projection
+    :return: transformed points in EPSG:4326 coordinates
+    """
+
     a, b, c, d, e, f = OPT_PARAMS
     x, y = xy_points[:, 0], xy_points[:, 1]
     lon = a * x + b * y + e
@@ -24,6 +37,13 @@ def xy_to_epsg4326(xy_points: np.ndarray) -> np.ndarray:
 
 
 def epsg4326_to_epsg32650(gps_points: np.ndarray) -> np.ndarray:
+    """
+    Transforms *gps_points* from EPSG:4326 into EPSG:32650 coordinates.
+
+    :param gps_points: NumPy ``ndarray`` of points in EPSG:4326 coordinates
+    :return: transformed points in EPSG:32650 coordinates
+    """
+
     transformer = Transformer.from_crs(EPSG_4326, EPSG_32650, always_xy=True)
     lon, lat = gps_points[:, 0], gps_points[:, 1]
     lon_t, lat_t = transformer.transform(lon, lat)
@@ -31,6 +51,13 @@ def epsg4326_to_epsg32650(gps_points: np.ndarray) -> np.ndarray:
 
 
 def epsg32650_to_epsg4326(gps_points: np.ndarray) -> np.ndarray:
+    """
+        Transforms *gps_points* from EPSG:32650 into EPSG:4326 coordinates.
+
+        :param gps_points: NumPy ``ndarray`` of points in EPSG:32650 coordinates
+        :return: transformed points in EPSG:4326 coordinates
+        """
+
     transformer = Transformer.from_crs(EPSG_32650, EPSG_4326, always_xy=True)
     lon, lat = gps_points[:, 0], gps_points[:, 1]
     lon_t, lat_t = transformer.transform(lon, lat)
@@ -100,7 +127,7 @@ def normalize(f: np.ndarray) -> np.ndarray:
     return f / norm
 
 
-def clip(v: float, minimum: float = 0.0, maximum: float = 1.0) -> float:
+def clip(v: float, *, minimum: float = 0.0, maximum: float = 1.0) -> float:
     """
     Clips *v* into the range [*minimum*, *maximum*].
 
@@ -137,7 +164,29 @@ def edit_distance_gain(s1: str, s2: str) -> float:
         return -0.1
 
 
+def get_trace(records: list[VehicleRecord], road_graph: nx.MultiDiGraph, cameras_info: dict, *, project=True) -> Trace:
+    trace = list()
+    for record in records:
+        camera_id = record.camera_id
+        camera = cameras_info[camera_id]
+        node_id = camera["node_id"]
+        trace.append([road_graph.nodes[node_id]["x"], road_graph.nodes[node_id]["y"]])
+
+    trace_df = pd.DataFrame(trace, columns=["longitude", "latitude"])
+    return Trace.from_dataframe(trace_df, lon_column="longitude", lat_column="latitude", xy=project)
+
+
 def get_path(road_graph: nx.MultiDiGraph, path_df: pd.DataFrame) -> list[tuple[int, int, int]] | None:
+    """
+    Returns a path as an edge ``list``. This function doesn't check if *path_df* is empty. Additionally, if
+    one of the edges in *path_df* doesn't exist in *road_graph*, ``None`` is returned. Likewise, if the resulting
+    edge ``list`` is not continuous.
+
+    :param road_graph: NetworkX ``M̀ultiDiGraph``
+    :param path_df: Pandas ``DataFrame`` returned from mappymatch's ``MatchResult.path_to_dataframe()``
+    :return: path as an edge ``list``
+    """
+
     edges = list()
     for _, (o, d, k) in path_df[["origin_junction_id", "destination_junction_id", "road_key"]].iterrows():
         edges.append((o, d, k))
@@ -148,3 +197,14 @@ def get_path(road_graph: nx.MultiDiGraph, path_df: pd.DataFrame) -> list[tuple[i
         return edges
     else:
         return None
+
+
+def get_node_path(path: list[tuple[int, int, int]]) -> list[int]:
+    """
+    Returns a path as a node ``list``. This function doesn't check the validity of *path*.
+
+    :param path: path as an edge ``list``
+    :return: path as a node ``list``
+    """
+
+    return list(map(lambda e: e[0], path)) + list(map(lambda e: e[1], path[-1:]))

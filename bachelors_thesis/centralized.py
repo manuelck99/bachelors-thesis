@@ -1,63 +1,50 @@
 import logging
 import random
-import time
 from argparse import ArgumentParser
 
-from mappymatch.maps.nx.nx_map import NxMap
-from mappymatch.maps.nx.readers.osm_readers import parse_osmnx_graph, NetworkType
-from mappymatch.matchers.lcss.lcss import LCSSMatcher
-
 from clustering import cluster_records
-from evaluation import yu_ao_yan_evaluation
-from util import load, load_graph, get_path
+from evaluation import yu_ao_yan_cluster_evaluation, su_liu_zheng_trajectory_evaluation
+from map_matching import map_match
+from util import load, load_graph
 from vehicle_record import load_records
 
 logger = logging.getLogger(__name__)
 
 
-def run(records_path: str, road_graph_path: str, cameras_info_path: str, use_gpu: bool) -> None:
+def run(records_path: str,
+        road_graph_path: str,
+        cameras_info_path: str,
+        map_match_proj_graph: bool,
+        use_gpu: bool) -> None:
     records = load_records(records_path)
     logger.info(f"Number of records: {len(records)}")
 
     random.shuffle(records)
 
     clusters = cluster_records(records, use_gpu=use_gpu)
+    singleton_clusters = {cluster for cluster in clusters if cluster.size() == 1}
     logger.info(f"Number of clusters: {len(clusters)}")
+    logger.info(f"Number of singleton clusters: {len(singleton_clusters)}")
+    logger.info(f"Non-singleton clusters: {1 - len(singleton_clusters) / len(clusters)}")
 
-    precision, recall, f1_score, expansion = yu_ao_yan_evaluation(records, clusters)
+    road_graph = load_graph(road_graph_path)
+    cameras_info: dict = load(cameras_info_path)
+    map_match(clusters, road_graph, cameras_info, project=map_match_proj_graph)
+
+    precision, recall, f1_score, expansion = yu_ao_yan_cluster_evaluation(records, clusters)
     logger.info(f"Precision: {precision}")
     logger.info(f"Recall: {recall}")
     logger.info(f"F1-Score: {f1_score}")
     logger.info(f"Expansion: {expansion}")
 
-    t0 = time.time_ns()
-    road_graph = load_graph(road_graph_path)
-    road_map = NxMap(parse_osmnx_graph(road_graph, xy=True, network_type=NetworkType.DRIVE))
-    cameras_info: dict = load(cameras_info_path)
-    empty_paths_count = 0
-    invalid_paths_count = 0
-    for cluster in clusters:
-        if cluster.size() < 3:
-            continue
-
-        trace = cluster.get_trace(road_graph, cameras_info)
-        matcher = LCSSMatcher(road_map)
-        match_result = matcher.match_trace(trace)
-        path_df = match_result.path_to_dataframe()
-
-        if path_df.empty:
-            empty_paths_count += 1
-            continue
-
-        path = get_path(road_graph, path_df)
-        if path is not None and len(path) > 0:
-            cluster.path = path
-        else:
-            invalid_paths_count += 1
-    t1 = time.time_ns()
-    logger.info(f"Map Matching execution time [ms]: {(t1 - t0) / 1000 / 1000}")
-    logger.info(f"Number of clusters with an empty path: {empty_paths_count}")
-    logger.info(f"Number of clusters with an invalid path: {invalid_paths_count}")
+    lcss, edr, stlc = su_liu_zheng_trajectory_evaluation(records,
+                                                         clusters,
+                                                         road_graph,
+                                                         cameras_info,
+                                                         project=map_match_proj_graph)
+    logger.info(f"LCSS distance: {lcss}")
+    logger.info(f"EDR distance: {edr}")
+    logger.info(f"STLC distance: {stlc}")
 
 
 if __name__ == "__main__":
@@ -83,12 +70,21 @@ if __name__ == "__main__":
         help="Path to the cameras information file"
     )
     parser.add_argument(
+        "--map-match-proj-graph",
+        action="store_true",
+        help="Use a projected graph for map matching"
+    )
+    parser.add_argument(
         "--use-gpu",
         action="store_true",
-        help="If True, all GPUs are used for similarity search, otherwise only CPUs"
+        help="Use all GPUs for similarity search, otherwise use only CPUs"
     )
     args = parser.parse_args()
 
     random.seed(0)
 
-    run(args.input_path, args.road_graph_path, args.cameras_info_path, args.use_gpu)
+    run(args.input_path,
+        args.road_graph_path,
+        args.cameras_info_path,
+        args.map_match_proj_graph,
+        args.use_gpu)

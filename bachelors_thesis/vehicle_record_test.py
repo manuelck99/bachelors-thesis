@@ -79,4 +79,4 @@ class TestVehicleRecordCluster:
         for record in vehicle_records:
             cluster.add_record(record)
 
-        assert centroid_license_plate_text == cluster.calculate_centroid_license_plate_text()
+        assert centroid_license_plate_text == cluster._calculate_centroid_license_plate_text()

@@ -56,10 +56,17 @@ def cluster_records(records: list[VehicleRecord], *, use_gpu=False) -> set[Vehic
     license_plate_features_ids = [record.record_id for record in records if record.has_license_plate()]
 
     t0 = time.time_ns()
-    vehicle_top_k_results = top_k_search(vehicle_features, vehicle_features_ids, k=K, dimension=DIMENSION,
-                                         number_of_threads=NUMBER_OF_THREADS, use_gpu=use_gpu)
-    license_plate_top_k_results = top_k_search(license_plate_features, license_plate_features_ids, k=K,
-                                               dimension=DIMENSION, number_of_threads=NUMBER_OF_THREADS,
+    vehicle_top_k_results = top_k_search(vehicle_features,
+                                         vehicle_features_ids,
+                                         k=K,
+                                         dimension=DIMENSION,
+                                         number_of_threads=NUMBER_OF_THREADS,
+                                         use_gpu=use_gpu)
+    license_plate_top_k_results = top_k_search(license_plate_features,
+                                               license_plate_features_ids,
+                                               k=K,
+                                               dimension=DIMENSION,
+                                               number_of_threads=NUMBER_OF_THREADS,
                                                use_gpu=use_gpu)
     t1 = time.time_ns()
     logger.info(f"Top K search time [ms]: {(t1 - t0) / 1000 / 1000}")

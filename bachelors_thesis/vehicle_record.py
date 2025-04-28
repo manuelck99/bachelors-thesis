@@ -5,11 +5,10 @@ from collections import defaultdict
 
 import networkx as nx
 import numpy as np
-import pandas as pd
 from mappymatch.constructs.trace import Trace
 
 from config import DIMENSION, WEIGHT_VEHICLE_SIMILARITY, WEIGHT_LICENSE_PLATE_SIMILARITY
-from util import feature_from_base64, normalize, calculate_similarity, edit_distance_gain, clip
+from util import feature_from_base64, normalize, calculate_similarity, edit_distance_gain, clip, get_trace
 
 RECORD_ID = "record_id"
 VEHICLE_ID = "vehicle_id"
@@ -86,6 +85,7 @@ class VehicleRecordCluster:
     weight_vehicle_similarity: float
     weight_license_plate_similarity: float
     path: list[tuple[int, int, int]] | None
+    node_path: list[int] | None
 
     def __init__(self, *, dimension: int = DIMENSION,
                  weight_vehicle_similarity: float = WEIGHT_VEHICLE_SIMILARITY,
@@ -99,6 +99,7 @@ class VehicleRecordCluster:
         self.weight_vehicle_similarity = weight_vehicle_similarity
         self.weight_license_plate_similarity = weight_license_plate_similarity
         self.path = None
+        self.node_path = None
 
     def add_record(self, record: VehicleRecord):
         self.records[record.record_id] = record
@@ -122,7 +123,7 @@ class VehicleRecordCluster:
         if self.number_of_license_plate_features != 0 and record.has_license_plate():
             license_plate_similarity = calculate_similarity(self.centroid_license_plate_feature,
                                                             record.license_plate_feature)
-            centroid_license_plate_text = self.calculate_centroid_license_plate_text()
+            centroid_license_plate_text = self._calculate_centroid_license_plate_text()
 
             return clip(self.weight_vehicle_similarity * vehicle_similarity
                         + self.weight_license_plate_similarity * license_plate_similarity
@@ -130,25 +131,19 @@ class VehicleRecordCluster:
         else:
             return clip(vehicle_similarity)
 
-    def calculate_centroid_license_plate_text(self) -> str:
+    def _calculate_centroid_license_plate_text(self) -> str:
         return max(self.license_plate_text_count, key=self.license_plate_text_count.get)
 
     def size(self) -> int:
         return len(self.records)
 
-    def get_trace(self, road_graph: nx.MultiDiGraph, cameras_info: dict) -> Trace:
+    def get_trace(self, road_graph: nx.MultiDiGraph, cameras_info: dict, *, project=True) -> Trace:
         records = list(self.records.values())
         records.sort(key=lambda r: r.timestamp)
-
-        trace = list()
-        for record in records:
-            camera_id = record.camera_id
-            camera = cameras_info[camera_id]
-            node_id = camera["node_id"]
-            trace.append([road_graph.nodes[node_id]["x"], road_graph.nodes[node_id]["y"]])
-
-        trace_df = pd.DataFrame(trace, columns=["longitude", "latitude"])
-        return Trace.from_dataframe(trace_df, lon_column="longitude", lat_column="latitude", xy=True)
+        return get_trace(records, road_graph, cameras_info, project=project)
 
     def has_path(self) -> bool:
-        return self.path is not None and len(self.path) > 0
+        return self.path is not None
+
+    def has_valid_path(self) -> bool:
+        return self.has_path() and len(self.path) > 0
