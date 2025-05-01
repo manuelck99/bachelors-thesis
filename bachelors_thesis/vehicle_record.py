@@ -65,6 +65,11 @@ class VehicleRecord:
     def is_annotated(self) -> bool:
         return self.vehicle_id is not None
 
+    def get_coordinates(self, road_graph: nx.MultiDiGraph, cameras_info: dict) -> (float, float):
+        camera = cameras_info[self.camera_id]
+        node_id = camera["node_id"]
+        return road_graph.nodes[node_id]["x"], road_graph.nodes[node_id]["y"]
+
     def __eq__(self, other):
         if isinstance(other, VehicleRecord):
             return self.record_id == other.record_id
@@ -137,10 +142,13 @@ class VehicleRecordCluster:
     def size(self) -> int:
         return len(self.records)
 
-    def get_trace(self, road_graph: nx.MultiDiGraph, cameras_info: dict, *, project=True) -> Trace:
+    def get_ordered_records(self) -> list[VehicleRecord]:
         records = list(self.records.values())
         records.sort(key=lambda r: r.timestamp)
-        return get_trace(records, road_graph, cameras_info, project=project)
+        return records
+
+    def get_trace(self, road_graph: nx.MultiDiGraph, cameras_info: dict, *, project=True) -> Trace:
+        return get_trace(self.get_ordered_records(), road_graph, cameras_info, project=project)
 
     def has_path(self) -> bool:
         return self.path is not None

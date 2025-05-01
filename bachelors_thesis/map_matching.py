@@ -18,12 +18,14 @@ def map_match(clusters: set[VehicleRecordCluster],
               *,
               project=True) -> None:
     road_map = NxMap(parse_osmnx_graph(road_graph, xy=project, network_type=NetworkType.DRIVE))
+    skipped_clusters_count = 0
     empty_paths_count = 0
     invalid_paths_count = 0
 
     t0 = time.time_ns()
     for cluster in clusters:
         if cluster.size() < 3:
+            skipped_clusters_count += 1
             continue
 
         trace = cluster.get_trace(road_graph, cameras_info, project=project)
@@ -43,6 +45,8 @@ def map_match(clusters: set[VehicleRecordCluster],
     t1 = time.time_ns()
 
     logger.info(f"Map Matching execution time [ms]: {(t1 - t0) / 1000 / 1000}")
+    logger.info(f"Number of skipped clusters: {skipped_clusters_count}")
     logger.info(f"Number of clusters with an empty path: {empty_paths_count}")
     logger.info(f"Number of clusters with an invalid path: {invalid_paths_count}")
-    logger.info(f"Clusters with a valid path: {1 - (empty_paths_count + invalid_paths_count) / len(clusters)}")
+    logger.info(
+        f"Non-skipped clusters with a valid path: {1 - (skipped_clusters_count + empty_paths_count + invalid_paths_count) / len(clusters)}")

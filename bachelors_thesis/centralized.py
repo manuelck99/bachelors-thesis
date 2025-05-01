@@ -19,6 +19,7 @@ def run(records_path: str,
     records = load_records(records_path)
     logger.info(f"Number of records: {len(records)}")
 
+    random.seed(0)
     random.shuffle(records)
 
     clusters = cluster_records(records, use_gpu=use_gpu)
@@ -80,8 +81,6 @@ if __name__ == "__main__":
         help="Use all GPUs for similarity search, otherwise use only CPUs"
     )
     args = parser.parse_args()
-
-    random.seed(0)
 
     run(args.input_path,
         args.road_graph_path,

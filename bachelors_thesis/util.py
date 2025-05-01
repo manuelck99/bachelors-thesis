@@ -167,10 +167,8 @@ def edit_distance_gain(s1: str, s2: str) -> float:
 def get_trace(records: list[VehicleRecord], road_graph: nx.MultiDiGraph, cameras_info: dict, *, project=True) -> Trace:
     trace = list()
     for record in records:
-        camera_id = record.camera_id
-        camera = cameras_info[camera_id]
-        node_id = camera["node_id"]
-        trace.append([road_graph.nodes[node_id]["x"], road_graph.nodes[node_id]["y"]])
+        x, y = record.get_coordinates(road_graph, cameras_info)
+        trace.append([x, y])
 
     trace_df = pd.DataFrame(trace, columns=["longitude", "latitude"])
     return Trace.from_dataframe(trace_df, lon_column="longitude", lat_column="latitude", xy=project)
@@ -179,7 +177,7 @@ def get_trace(records: list[VehicleRecord], road_graph: nx.MultiDiGraph, cameras
 def get_path(road_graph: nx.MultiDiGraph, path_df: pd.DataFrame) -> list[tuple[int, int, int]] | None:
     """
     Returns a path as an edge ``list``. This function doesn't check if *path_df* is empty. Additionally, if
-    one of the edges in *path_df* doesn't exist in *road_graph*, ``None`` is returned. Likewise, if the resulting
+    one of the edges in *path_df* doesn't exist in *road_graph*, ``None`` is returned. Likewise if the resulting
     edge ``list`` is not continuous.
 
     :param road_graph: NetworkX ``M̀ultiDiGraph``
