@@ -1,6 +1,8 @@
 import heapq
 import json
+import math
 import os
+import sys
 import tempfile
 from argparse import ArgumentParser
 
@@ -15,17 +17,17 @@ def write_sorted_chunk(chunk):
 
 
 def merge_sorted_chunks(temp_files, output_path):
-    open_files = [open(f.name, "r", encoding="utf-8") for f in temp_files]
+    files = [open(temp_file.name, "r", encoding="utf-8") for temp_file in temp_files]
 
     def get_line_obj(file_index):
-        line = open_files[file_index].readline()
+        line = files[file_index].readline()
         if not line:
             return None
         obj = json.loads(line)
         return (obj["time"], file_index, line)
 
     heap = []
-    for i in range(len(open_files)):
+    for i in range(len(files)):
         entry = get_line_obj(i)
         if entry:
             heapq.heappush(heap, entry)
@@ -38,8 +40,20 @@ def merge_sorted_chunks(temp_files, output_path):
             if entry:
                 heapq.heappush(heap, entry)
 
-    for f in open_files:
-        f.close()
+    for file in files:
+        file.close()
+
+
+def are_records_sorted(path):
+    prev_time = -math.inf
+    with open(path, mode="r", encoding="utf-8") as file:
+        for line in file:
+            record = json.loads(line)
+            if prev_time > record["time"]:
+                return False
+            else:
+                prev_time = record["time"]
+    return True
 
 
 if __name__ == "__main__":
@@ -66,9 +80,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     temp_files = []
-    with open(args.input_path, "r", encoding="utf-8") as infile:
+    with open(args.input_path, "r", encoding="utf-8") as in_file:
         chunk = []
-        for line in infile:
+        for line in in_file:
             chunk.append(line)
             if len(chunk) >= args.chunk_size:
                 temp_file = write_sorted_chunk(chunk)
@@ -82,5 +96,8 @@ if __name__ == "__main__":
 
     merge_sorted_chunks(temp_files, args.output_path)
 
-    for f in temp_files:
-        os.remove(f.name)
+    for temp_file in temp_files:
+        os.remove(temp_file.name)
+
+    if not are_records_sorted(args.output_path):
+        print("Sorting of records unsuccessful", file=sys.stderr)

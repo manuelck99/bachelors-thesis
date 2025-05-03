@@ -24,7 +24,7 @@ def map_match(clusters: set[VehicleRecordCluster],
 
     t0 = time.time_ns()
     for cluster in clusters:
-        if cluster.size() < 3:
+        if cluster.size() < 2:
             skipped_clusters_count += 1
             continue
 

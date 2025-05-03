@@ -35,8 +35,8 @@ if __name__ == "__main__":
     annotated_file = open(annotated_path, mode="w", encoding="utf-8")
     all_file = open(all_path, mode="w", encoding="utf-8")
 
-    with open(args.input_path, mode="r", encoding="utf-8") as infile:
-        for line in infile:
+    with open(args.input_path, mode="r", encoding="utf-8") as in_file:
+        for line in in_file:
             record = json.loads(line)
             is_annotated = record["vehicle_id"] is not None
 
