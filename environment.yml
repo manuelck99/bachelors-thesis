@@ -3,8 +3,8 @@ dependencies:
   - conda-forge::python=3.12.9
   - conda-forge::pip=25.0.1
   - conda-forge::pytest=8.3.5
-  - conda-forge::numpy=1.26.4
-  - pytorch::faiss-gpu=1.10.0
+  - conda-forge::numpy
+  - pytorch::faiss-gpu=1.11.0
   - conda-forge::networkx=3.4.2
   - conda-forge::scipy=1.15.2
   - conda-forge::scikit-learn=1.6.1
@@ -12,10 +12,10 @@ dependencies:
   - conda-forge::osmnx=2.0.2
   - conda-forge::pandas=2.2.3
   - conda-forge::geopandas=1.0.1
-  - conda-forge::shapely=2.0.7
+  - conda-forge::shapely=2.1.0
   - conda-forge::pyproj=3.7.1
   - conda-forge::levenshtein=0.27.1
-  - conda-forge::jupyterlab=4.3.6
+  - conda-forge::jupyterlab=4.4.1
   - conda-forge::libsqlite=3.49.1
 
 # libsqlite is needed, because the Jupyter server keeps crashing
@@ -23,7 +23,7 @@ dependencies:
 # conda install -c conda-forge libsqlite=3.49.1 --force-reinstall -y
 #
 # faiss-gpu needs to be similarly installed
-# conda install -c pytorch -c nvidia faiss-gpu=1.10.0 --force-reinstall -y
+# conda install -c pytorch -c nvidia faiss-gpu=1.11.0 --force-reinstall -y
 #
 # mappymatch needs to be installed through pip, since it's not available as a conda package
 # pip install mappymatch
