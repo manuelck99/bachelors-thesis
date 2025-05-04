@@ -1,10 +1,18 @@
 name: bachelors-thesis
+channels:
+  - nvidia
+  - pytorch
+  - conda-forge
+  - defaults
 dependencies:
   - conda-forge::python=3.12.9
   - conda-forge::pip=25.0.1
   - conda-forge::pytest=8.3.5
-  - conda-forge::numpy
-  - pytorch::faiss-gpu=1.11.0
+  - conda-forge::pyzmq=26.4.0
+  - conda-forge::grpcio=1.71.0
+  - conda-forge::grpcio-tools=1.71.0
+  - conda-forge::numpy=1.26.4
+  - faiss-gpu=1.11.0
   - conda-forge::networkx=3.4.2
   - conda-forge::scipy=1.15.2
   - conda-forge::scikit-learn=1.6.1
@@ -18,12 +26,5 @@ dependencies:
   - conda-forge::jupyterlab=4.4.1
   - conda-forge::libsqlite=3.49.1
 
-# libsqlite is needed, because the Jupyter server keeps crashing
-# See https://stackoverflow.com/questions/74837553/how-to-fix-a-mac-base-conda-environment-when-sqlite3-is-broken
-# conda install -c conda-forge libsqlite=3.49.1 --force-reinstall -y
-#
-# faiss-gpu needs to be similarly installed
-# conda install -c pytorch -c nvidia faiss-gpu=1.11.0 --force-reinstall -y
-#
 # mappymatch needs to be installed through pip, since it's not available as a conda package
 # pip install mappymatch
