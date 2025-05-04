@@ -26,7 +26,7 @@ def run(records_path: str,
     singleton_clusters = {cluster for cluster in clusters if cluster.size() == 1}
     logger.info(f"Number of clusters: {len(clusters)}")
     logger.info(f"Number of singleton clusters: {len(singleton_clusters)}")
-    logger.info(f"Non-singleton clusters: {1 - len(singleton_clusters) / len(clusters)}")
+    logger.info(f"Number of non-singleton clusters: {len(clusters) - len(singleton_clusters)}")
 
     road_graph = load_graph(road_graph_path)
     cameras_info: dict = load(cameras_info_path)
@@ -53,19 +53,19 @@ if __name__ == "__main__":
 
     parser = ArgumentParser()
     parser.add_argument(
-        "-i", "--input-path",
+        "--records-path",
         type=str,
         required=True,
-        help="Path to the input records file"
+        help="Path to the records file"
     )
     parser.add_argument(
-        "-g", "--road-graph-path",
+        "--road-graph-path",
         type=str,
         required=True,
         help="Path to the road graph file"
     )
     parser.add_argument(
-        "-c", "--cameras-info-path",
+        "--cameras-info-path",
         type=str,
         required=True,
         help="Path to the cameras information file"
@@ -82,7 +82,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    run(args.input_path,
+    run(args.records_path,
         args.road_graph_path,
         args.cameras_info_path,
         args.map_match_proj_graph,

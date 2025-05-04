@@ -12,6 +12,7 @@ from vehicle_record import VehicleRecordCluster
 logger = logging.getLogger(__name__)
 
 
+# TODO: Try to do this in parallel
 def map_match(clusters: set[VehicleRecordCluster],
               road_graph: nx.MultiDiGraph,
               cameras_info: dict,
@@ -24,7 +25,7 @@ def map_match(clusters: set[VehicleRecordCluster],
 
     t0 = time.time_ns()
     for cluster in clusters:
-        if cluster.size() < 2:
+        if cluster.size() < 3:
             skipped_clusters_count += 1
             continue
 
@@ -44,9 +45,9 @@ def map_match(clusters: set[VehicleRecordCluster],
             invalid_paths_count += 1
     t1 = time.time_ns()
 
-    logger.info(f"Map Matching execution time [ms]: {(t1 - t0) / 1000 / 1000}")
-    logger.info(f"Number of skipped clusters: {skipped_clusters_count}")
-    logger.info(f"Number of clusters with an empty path: {empty_paths_count}")
-    logger.info(f"Number of clusters with an invalid path: {invalid_paths_count}")
+    logger.info(f"Map-Matching execution time [ms]: {(t1 - t0) / 1000 / 1000}")
+    logger.info(f"Number of map-matching skipped clusters: {skipped_clusters_count}")
+    logger.info(f"Number of map-matched clusters with an empty path: {empty_paths_count}")
+    logger.info(f"Number of map-matched clusters with an invalid path: {invalid_paths_count}")
     logger.info(
-        f"Non-skipped clusters with a valid path: {1 - (skipped_clusters_count + empty_paths_count + invalid_paths_count) / len(clusters)}")
+        f"Number of map-matched clusters: {len(clusters) - (skipped_clusters_count + empty_paths_count + invalid_paths_count)}")

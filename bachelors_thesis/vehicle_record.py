@@ -20,16 +20,13 @@ TIMESTAMP = "time"
 
 
 def load_records(record_path: str) -> list[VehicleRecord]:
-    record_id = 0
     records = list()
     with open(record_path, mode="r", encoding="utf-8") as file:
         for line in file:
             record = json.loads(line)
-            record[RECORD_ID] = record_id
             record[VEHICLE_FEATURE] = feature_from_base64(record[VEHICLE_FEATURE])
             record[LICENSE_PLATE_FEATURE] = feature_from_base64(record[LICENSE_PLATE_FEATURE])
             records.append(VehicleRecord(record))
-            record_id += 1
     return records
 
 
@@ -155,3 +152,9 @@ class VehicleRecordCluster:
 
     def has_valid_path(self) -> bool:
         return self.has_path() and len(self.path) > 0
+
+    def has_node_path(self) -> bool:
+        return self.node_path is not None
+
+    def has_valid_node_path(self) -> bool:
+        return self.has_node_path() and len(self.node_path) > 1

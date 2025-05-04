@@ -39,7 +39,7 @@ def yu_ao_yan_cluster_evaluation(records: list[VehicleRecord],
         cluster_of_vehicle = find_cluster_of_vehicle(vehicle_id, clusters)
         number_of_records_of_vehicle_in_cluster = calculate_number_of_records_of_vehicle_in_cluster(vehicle_id,
                                                                                                     cluster_of_vehicle)
-        precision += number_of_records_of_vehicle_in_cluster / len(cluster_of_vehicle.records)
+        precision += number_of_records_of_vehicle_in_cluster / cluster_of_vehicle.size()
         recall += number_of_records_of_vehicle_in_cluster / vehicle_records_count[vehicle_id]
 
         for cluster in clusters:
