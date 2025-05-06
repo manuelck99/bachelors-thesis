@@ -18,32 +18,22 @@ def top_k_search(features: list[np.ndarray],
                  dimension: int,
                  number_of_threads: int,
                  use_gpu=False) -> np.ndarray:
-    logger.debug("Creating vector database")
     db_features = np.vstack(features)
-
-    logger.debug("Normalizing vector database")
     faiss.normalize_L2(db_features)
 
-    logger.debug("Building FAISS index")
     features_index = faiss.IndexFlatIP(dimension)
     if use_gpu:
-        logger.debug("Using GPU index")
         features_index = faiss.index_cpu_to_all_gpus(features_index)
     features_index = faiss.IndexIDMap(features_index)
 
     if not use_gpu:
-        logger.debug("Setting number of threads for CPU index")
         if number_of_threads > faiss.omp_get_max_threads():
             faiss.omp_set_num_threads(faiss.omp_get_max_threads())
         else:
             faiss.omp_set_num_threads(number_of_threads)
 
-    logger.debug("Adding vector database to FAISS index")
     features_index.add_with_ids(db_features, features_ids)
-
-    logger.debug("Similarity searching vector database")
     _, results = features_index.search(db_features, k)
-
     return results
 
 

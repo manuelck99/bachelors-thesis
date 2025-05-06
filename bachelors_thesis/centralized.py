@@ -1,5 +1,4 @@
 import logging
-import random
 from argparse import ArgumentParser
 
 from clustering import cluster_records
@@ -19,25 +18,26 @@ def run(records_path: str,
     records = load_records(records_path)
     logger.info(f"Number of records: {len(records)}")
 
-    random.seed(0)
-    random.shuffle(records)
-
+    # Clustering
     clusters = cluster_records(records, use_gpu=use_gpu)
     singleton_clusters = {cluster for cluster in clusters if cluster.size() == 1}
     logger.info(f"Number of clusters: {len(clusters)}")
     logger.info(f"Number of singleton clusters: {len(singleton_clusters)}")
     logger.info(f"Number of non-singleton clusters: {len(clusters) - len(singleton_clusters)}")
 
+    # Map-matching
     road_graph = load_graph(road_graph_path)
     cameras_info: dict = load(cameras_info_path)
     map_match(clusters, road_graph, cameras_info, project=map_match_proj_graph)
 
+    # Cluster evaluation
     precision, recall, f1_score, expansion = yu_ao_yan_cluster_evaluation(records, clusters)
     logger.info(f"Precision: {precision}")
     logger.info(f"Recall: {recall}")
     logger.info(f"F1-Score: {f1_score}")
     logger.info(f"Expansion: {expansion}")
 
+    # Trajectory evaluation
     lcss, edr, stlc = su_liu_zheng_trajectory_evaluation(records,
                                                          clusters,
                                                          road_graph,
