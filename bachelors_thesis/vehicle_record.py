@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from collections import defaultdict
+from uuid import UUID, uuid4
 
 import networkx as nx
 import numpy as np
@@ -31,7 +32,7 @@ def load_records(record_path: str) -> list[VehicleRecord]:
 
 
 class VehicleRecord:
-    record_id: int
+    record_id: UUID
     vehicle_id: int | None
     camera_id: int
     vehicle_feature: np.ndarray
@@ -41,7 +42,7 @@ class VehicleRecord:
     cluster: VehicleRecordCluster | None
 
     def __init__(self, record: dict):
-        self.record_id = record[RECORD_ID]
+        self.record_id = UUID(record[RECORD_ID])
         self.vehicle_id = record[VEHICLE_ID]
         self.camera_id = record[CAMERA_ID]
         self.vehicle_feature = record[VEHICLE_FEATURE]
@@ -78,7 +79,8 @@ class VehicleRecord:
 
 
 class VehicleRecordCluster:
-    records: dict[int, VehicleRecord]
+    cluster_id: UUID
+    records: dict[UUID, VehicleRecord]
     centroid_vehicle_feature: np.ndarray
     number_of_vehicle_features: int
     centroid_license_plate_feature: np.ndarray
@@ -92,6 +94,7 @@ class VehicleRecordCluster:
     def __init__(self, *, dimension: int = DIMENSION,
                  weight_vehicle_similarity: float = WEIGHT_VEHICLE_SIMILARITY,
                  weight_license_plate_similarity: float = WEIGHT_LICENSE_PLATE_SIMILARITY):
+        self.cluster_id = uuid4()
         self.records = dict()
         self.centroid_vehicle_feature = np.zeros(dimension, dtype=np.float32)
         self.number_of_vehicle_features = 0
@@ -158,3 +161,12 @@ class VehicleRecordCluster:
 
     def has_valid_node_path(self) -> bool:
         return self.has_node_path() and len(self.node_path) > 1
+
+    def __eq__(self, other):
+        if isinstance(other, VehicleRecordCluster):
+            return self.cluster_id == other.cluster_id
+        else:
+            return False
+
+    def __hash__(self):
+        return hash(self.cluster_id)

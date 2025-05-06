@@ -1,5 +1,6 @@
 import json
 from argparse import ArgumentParser
+from uuid import uuid4
 
 if __name__ == "__main__":
     parser = ArgumentParser()
@@ -20,11 +21,10 @@ if __name__ == "__main__":
     in_file = open(args.input_path, mode="r", encoding="utf-8")
     out_file = open(args.output_path, mode="w", encoding="utf-8")
 
-    record_id = 0
     for line in in_file:
+        record_id = uuid4()
         record = json.loads(line)
-        record["record_id"] = record_id
-        record_id += 1
+        record["record_id"] = record_id.hex
         out_file.write(json.dumps(record))
         out_file.write("\n")
 
