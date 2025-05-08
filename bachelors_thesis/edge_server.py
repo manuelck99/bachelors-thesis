@@ -1,11 +1,14 @@
 import logging
 from argparse import ArgumentParser, ArgumentTypeError
 
+import zmq
+
+import networking_pb2
 from clustering import cluster_records
-from evaluation import yu_ao_yan_cluster_evaluation, su_liu_zheng_trajectory_evaluation
 from map_matching import map_match
 from region import load_regions
 from util import load, load_graph
+from vehicle_record import VehicleRecordCluster
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +18,26 @@ def parse_auxiliary_region(s: str) -> tuple[int, int]:
     if len(parts) != 2:
         raise ArgumentTypeError(f"{s} can't be parsed as an auxiliary region")
     return int(parts[0]), int(parts[1])
+
+
+def cluster_to_protobuf(cluster: VehicleRecordCluster, cluster_pb):
+    cluster_pb.cluster_id = cluster.cluster_id.hex
+    cluster_pb.centroid_vehicle_feature.extend(cluster.centroid_vehicle_feature.tolist())
+
+    if cluster.number_of_license_plate_features != 0:
+        cluster_pb.centroid_license_plate_feature.extend(cluster.centroid_license_plate_feature.tolist())
+
+    if cluster.number_of_license_plate_features != 0:
+        cluster_pb.centroid_license_plate_text = cluster.get_centroid_license_plate_text()
+
+    cluster_pb.node_path.extend(cluster.node_path)
+
+    for record in cluster.records.values():
+        record_pb = cluster_pb.records.add()
+        record_pb.record_id = record.record_id.hex
+        record_pb.vehicle_id = record.vehicle_id if record.vehicle_id is not None else -1
+        record_pb.camera_id = record.camera_id
+        record_pb.timestamp = record.timestamp
 
 
 def run(records_path: str,
@@ -63,43 +86,22 @@ def run(records_path: str,
     for aux_region in aux_regions:
         map_match(aux_region.clusters, road_graph, cameras_info, project=map_match_proj_graph)
 
-    # Cluster evaluation
-    precision, recall, f1_score, expansion = yu_ao_yan_cluster_evaluation(region.records, region.clusters)
-    logger.info(f"Region {region.region_id}:")
-    logger.info(f"Precision: {precision}")
-    logger.info(f"Recall: {recall}")
-    logger.info(f"F1-Score: {f1_score}")
-    logger.info(f"Expansion: {expansion}")
+    context = zmq.Context()
+    socket = context.socket(zmq.PUSH)
+    socket.connect("tcp://localhost:5555")
 
-    for aux_region in aux_regions:
-        precision, recall, f1_score, expansion = yu_ao_yan_cluster_evaluation(aux_region.records, aux_region.clusters)
-        logger.info(f"Auxiliary region {aux_region.region_id}:")
-        logger.info(f"Precision: {precision}")
-        logger.info(f"Recall: {recall}")
-        logger.info(f"F1-Score: {f1_score}")
-        logger.info(f"Expansion: {expansion}")
+    for cluster in filter(lambda c: c.has_node_path(), region.clusters):
+        envelope = networking_pb2.Envelope()
+        envelope.region_id = str(region.region_id)
+        envelope.is_auxiliary = False
+        cluster_to_protobuf(cluster, envelope.cluster)
+        socket.send(envelope.SerializeToString())
 
-    # Trajectory evaluation
-    lcss, edr, stlc = su_liu_zheng_trajectory_evaluation(region.records,
-                                                         region.clusters,
-                                                         road_graph,
-                                                         cameras_info,
-                                                         project=map_match_proj_graph)
-    logger.info(f"Region {region.region_id}:")
-    logger.info(f"LCSS distance: {lcss}")
-    logger.info(f"EDR distance: {edr}")
-    logger.info(f"STLC distance: {stlc}")
-
-    for aux_region in aux_regions:
-        lcss, edr, stlc = su_liu_zheng_trajectory_evaluation(aux_region.records,
-                                                             aux_region.clusters,
-                                                             road_graph,
-                                                             cameras_info,
-                                                             project=map_match_proj_graph)
-        logger.info(f"Auxiliary region {aux_region.region_id}:")
-        logger.info(f"LCSS distance: {lcss}")
-        logger.info(f"EDR distance: {edr}")
-        logger.info(f"STLC distance: {stlc}")
+    envelope = networking_pb2.Envelope()
+    envelope.region_id = str(region.region_id)
+    envelope.is_auxiliary = False
+    envelope.done = True
+    socket.send(envelope.SerializeToString())
 
 
 if __name__ == "__main__":

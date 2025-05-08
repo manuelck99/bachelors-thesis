@@ -6,21 +6,24 @@ message Cluster {
   string cluster_id = 1;
   repeated float centroid_vehicle_feature = 2;
   repeated float centroid_license_plate_feature = 3;
-  string centroid_license_plate_text = 4;
-  repeated uint32 node_path = 5;
+  string centroid_license_plate_text = 4 [default = ""];
+  repeated uint64 node_path = 5;
   repeated Record records = 6;
 }
 
 message Record {
   string record_id = 1;
-  uint32 camera_id = 2;
-  sint32 vehicle_id = 3;
-  sint32 timestamp = 4;
+  sint64 vehicle_id = 2 [default = -1];
+  uint64 camera_id = 3;
+  sint64 timestamp = 4;
 }
 
 message Envelope {
+  string region_id = 1;
+  bool is_auxiliary = 2 [default = false];
+
   oneof content {
-    bool done = 1;
-    Cluster cluster = 2;
+    bool done = 3;
+    Cluster cluster = 4;
   }
 }

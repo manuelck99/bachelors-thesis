@@ -128,7 +128,7 @@ class VehicleRecordCluster:
         if self.number_of_license_plate_features != 0 and record.has_license_plate():
             license_plate_similarity = calculate_similarity(self.centroid_license_plate_feature,
                                                             record.license_plate_feature)
-            centroid_license_plate_text = self._calculate_centroid_license_plate_text()
+            centroid_license_plate_text = self.get_centroid_license_plate_text()
 
             return clip(self.weight_vehicle_similarity * vehicle_similarity
                         + self.weight_license_plate_similarity * license_plate_similarity
@@ -136,7 +136,7 @@ class VehicleRecordCluster:
         else:
             return clip(vehicle_similarity)
 
-    def _calculate_centroid_license_plate_text(self) -> str:
+    def get_centroid_license_plate_text(self) -> str:
         return max(self.license_plate_text_count, key=self.license_plate_text_count.get)
 
     def size(self) -> int:
