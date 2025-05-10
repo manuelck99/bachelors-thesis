@@ -2,6 +2,13 @@ edition = "2023";
 
 package bachelors_thesis;
 
+message Record {
+  string record_id = 1;
+  sint64 vehicle_id = 2 [default = -1];
+  uint64 camera_id = 3;
+  sint64 timestamp = 4;
+}
+
 message Cluster {
   string cluster_id = 1;
   repeated float centroid_vehicle_feature = 2;
@@ -11,19 +18,12 @@ message Cluster {
   repeated Record records = 6;
 }
 
-message Record {
-  string record_id = 1;
-  sint64 vehicle_id = 2 [default = -1];
-  uint64 camera_id = 3;
-  sint64 timestamp = 4;
-}
-
 message Envelope {
   string region_id = 1;
   bool is_auxiliary = 2 [default = false];
 
   oneof content {
-    bool done = 3;
+    bool done = 3 [default = false];
     Cluster cluster = 4;
   }
 }

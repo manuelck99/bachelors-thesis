@@ -1,12 +1,12 @@
 import logging
 from argparse import ArgumentParser
+from collections import defaultdict
 
 import zmq
-from rasterio.crs import defaultdict
 
 import networking_pb2
-from record import Cluster, Record
 from util import load
+from vehicle_record import VehicleRecordClusterCompact
 
 logger = logging.getLogger(__name__)
 
@@ -19,22 +19,6 @@ def parse_region_id(region_id: str, is_auxiliary: bool) -> int | tuple[int, int]
         return int(region_id)
 
 
-def protobuf_to_cluster(cluster_pb) -> Cluster:
-    records = list()
-    for record in cluster_pb.records:
-        records.append(Record(record_id=record.record_id,
-                              vehicle_id=record.vehicle_id,
-                              camera_id=record.camera_id,
-                              timestamp=record.timestamp))
-
-    return Cluster(cluster_id=cluster_pb.cluster_id,
-                   centroid_vehicle_feature=cluster_pb.centroid_vehicle_feature,
-                   centroid_license_plate_feature=cluster_pb.centroid_license_plate_feature,
-                   centroid_license_plate_text=cluster_pb.centroid_license_plate_text,
-                   node_path=cluster_pb.node_path,
-                   records=records)
-
-
 def run(records_path: str,
         road_graph_path: str,
         cameras_info_path: str,
@@ -43,13 +27,14 @@ def run(records_path: str,
         use_gpu: bool) -> None:
     region_partitioning: dict = load(region_partitioning_path)
     regions_done = dict()
-    region_clusters = defaultdict(set)
+    regions_clusters = defaultdict(set)
     for region_id in region_partitioning.keys():
         regions_done[region_id] = False
 
     context = zmq.Context()
     socket = context.socket(zmq.PULL)
     socket.bind("tcp://localhost:5555")
+
     while not all(regions_done.values()):
         message = socket.recv()
         envelope = networking_pb2.Envelope()
@@ -57,16 +42,11 @@ def run(records_path: str,
 
         is_auxiliary: bool = envelope.is_auxiliary
         region_id = parse_region_id(envelope.region_id, is_auxiliary)
-        if envelope.WhichOneof("content") == "done":
+        if envelope.WhichOneof("content") == "done" and envelope.done:
             regions_done[region_id] = True
         else:
-            cluster = protobuf_to_cluster(envelope.cluster)
-            region_clusters[region_id].add(cluster)
-
-        print("regions_done: ", regions_done)
-        print("region_clusters: ", region_clusters)
-
-    # TODO: Shutdown ZeroMQ
+            cluster = VehicleRecordClusterCompact.from_protobuf(envelope.cluster)
+            regions_clusters[region_id].add(cluster)
 
 
 if __name__ == "__main__":

@@ -6,9 +6,8 @@ import zmq
 import networking_pb2
 from clustering import cluster_records
 from map_matching import map_match
-from region import load_regions
+from region import load_regions, Region
 from util import load, load_graph
-from vehicle_record import VehicleRecordCluster
 
 logger = logging.getLogger(__name__)
 
@@ -20,24 +19,31 @@ def parse_auxiliary_region(s: str) -> tuple[int, int]:
     return int(parts[0]), int(parts[1])
 
 
-def cluster_to_protobuf(cluster: VehicleRecordCluster, cluster_pb):
-    cluster_pb.cluster_id = cluster.cluster_id.hex
-    cluster_pb.centroid_vehicle_feature.extend(cluster.centroid_vehicle_feature.tolist())
+def send_clusters(socket, region: Region) -> None:
+    for cluster in filter(lambda c: c.has_valid_node_path(), region.clusters):
+        envelope = networking_pb2.Envelope()
 
-    if cluster.number_of_license_plate_features != 0:
-        cluster_pb.centroid_license_plate_feature.extend(cluster.centroid_license_plate_feature.tolist())
+        if region.is_auxiliary:
+            i, j = region.region_id
+            envelope.region_id = f"{i}-{j}"
+        else:
+            envelope.region_id = str(region.region_id)
 
-    if cluster.number_of_license_plate_features != 0:
-        cluster_pb.centroid_license_plate_text = cluster.get_centroid_license_plate_text()
+        envelope.is_auxiliary = region.is_auxiliary
+        cluster.to_protobuf(envelope.cluster)
+        socket.send(envelope.SerializeToString())
 
-    cluster_pb.node_path.extend(cluster.node_path)
+    envelope = networking_pb2.Envelope()
 
-    for record in cluster.records.values():
-        record_pb = cluster_pb.records.add()
-        record_pb.record_id = record.record_id.hex
-        record_pb.vehicle_id = record.vehicle_id if record.vehicle_id is not None else -1
-        record_pb.camera_id = record.camera_id
-        record_pb.timestamp = record.timestamp
+    if region.is_auxiliary:
+        i, j = region.region_id
+        envelope.region_id = f"{i}-{j}"
+    else:
+        envelope.region_id = str(region.region_id)
+
+    envelope.is_auxiliary = region.is_auxiliary
+    envelope.done = True
+    socket.send(envelope.SerializeToString())
 
 
 def run(records_path: str,
@@ -52,6 +58,7 @@ def run(records_path: str,
                                        region_partitioning_path,
                                        region,
                                        auxiliary_regions)
+
     # Region
     logger.info(f"Number of region {region.region_id} records: {region.number_of_records()}")
 
@@ -67,6 +74,12 @@ def run(records_path: str,
     road_graph = load_graph(road_graph_path)
     cameras_info: dict = load(cameras_info_path)
     map_match(region.clusters, road_graph, cameras_info, project=map_match_proj_graph)
+
+    context = zmq.Context()
+    socket = context.socket(zmq.PUSH)
+    socket.connect("tcp://localhost:5555")
+
+    send_clusters(socket, region)
 
     # Auxiliary regions
     for aux_region in aux_regions:
@@ -86,22 +99,8 @@ def run(records_path: str,
     for aux_region in aux_regions:
         map_match(aux_region.clusters, road_graph, cameras_info, project=map_match_proj_graph)
 
-    context = zmq.Context()
-    socket = context.socket(zmq.PUSH)
-    socket.connect("tcp://localhost:5555")
-
-    for cluster in filter(lambda c: c.has_node_path(), region.clusters):
-        envelope = networking_pb2.Envelope()
-        envelope.region_id = str(region.region_id)
-        envelope.is_auxiliary = False
-        cluster_to_protobuf(cluster, envelope.cluster)
-        socket.send(envelope.SerializeToString())
-
-    envelope = networking_pb2.Envelope()
-    envelope.region_id = str(region.region_id)
-    envelope.is_auxiliary = False
-    envelope.done = True
-    socket.send(envelope.SerializeToString())
+    for aux_region in aux_regions:
+        send_clusters(socket, aux_region)
 
 
 if __name__ == "__main__":

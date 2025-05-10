@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import json
 
-from util import feature_from_base64, load
-from vehicle_record import VehicleRecord, VehicleRecordCluster, VEHICLE_FEATURE, LICENSE_PLATE_FEATURE
+from util import load
+from vehicle_record import VehicleRecord, VehicleRecordCluster
 
 
 def load_regions(records_path: str,
@@ -17,15 +17,13 @@ def load_regions(records_path: str,
     with open(records_path, mode="r", encoding="utf-8") as file:
         for line in file:
             record = json.loads(line)
-            record[VEHICLE_FEATURE] = feature_from_base64(record[VEHICLE_FEATURE])
-            record[LICENSE_PLATE_FEATURE] = feature_from_base64(record[LICENSE_PLATE_FEATURE])
 
-            region_record = VehicleRecord(record)
+            region_record = VehicleRecord.build_record(record)
             if region.is_record_in_region(region_record, region_partitioning):
                 region.add_record(region_record)
 
             for aux_region in aux_regions:
-                aux_region_record = VehicleRecord(record)
+                aux_region_record = VehicleRecord.build_record(record)
                 if aux_region.is_record_in_region(aux_region_record, region_partitioning):
                     aux_region.add_record(aux_region_record)
 
@@ -50,7 +48,7 @@ class Region:
     def is_record_in_region(self, record: VehicleRecord, region_partitioning: dict) -> bool:
         region = region_partitioning[self.region_id]
         camera_ids = region["cameras"]
-        return record.camera_id in camera_ids
+        return record.get_camera_id() in camera_ids
 
     def number_of_records(self) -> int:
         return len(self.records)
@@ -61,7 +59,7 @@ class Region:
     def number_of_singleton_clusters(self) -> int:
         count = 0
         for cluster in self.clusters:
-            if cluster.size() == 1:
+            if cluster.get_size() == 1:
                 count += 1
         return count
 

@@ -9,6 +9,7 @@ import networkx as nx
 import numpy as np
 from mappymatch.constructs.trace import Trace
 
+import networking_pb2
 from util import feature_from_base64, normalize, calculate_similarity, edit_distance_gain, clip, get_trace
 
 RECORD_ID = "record_id"
@@ -25,17 +26,7 @@ def load_records(record_path: str) -> list[VehicleRecord]:
     with open(record_path, mode="r", encoding="utf-8") as file:
         for line in file:
             record = json.loads(line)
-            record[VEHICLE_FEATURE] = feature_from_base64(record[VEHICLE_FEATURE])
-            record[LICENSE_PLATE_FEATURE] = feature_from_base64(record[LICENSE_PLATE_FEATURE])
-            record[LICENSE_PLATE_TEXT] = record[LICENSE_PLATE_TEXT] if record[
-                                                                           LICENSE_PLATE_FEATURE] is not None else None
-            records.append(VehicleRecord(record_id=UUID(record[RECORD_ID]),
-                                         vehicle_id=record[VEHICLE_ID],
-                                         camera_id=record[CAMERA_ID],
-                                         vehicle_feature=record[VEHICLE_FEATURE],
-                                         license_plate_feature=record[LICENSE_PLATE_FEATURE],
-                                         license_plate_text=record[LICENSE_PLATE_TEXT],
-                                         timestamp=record[TIMESTAMP]))
+            records.append(VehicleRecord.build_record(record))
     return records
 
 
@@ -119,6 +110,16 @@ class VehicleRecordCompact(Record):
     def __hash__(self):
         return hash(self.__record_id)
 
+    @staticmethod
+    def from_protobuf(record_pb: networking_pb2.Record) -> VehicleRecordCompact:
+        record_id = UUID(record_pb.record_id)
+        vehicle_id = record_pb.vehicle_id if record_pb.vehicle_id >= 0 else None
+
+        return VehicleRecordCompact(record_id=record_id,
+                                    vehicle_id=vehicle_id,
+                                    camera_id=record_pb.camera_id,
+                                    timestamp=record_pb.timestamp)
+
 
 class VehicleRecord(Record):
     __record_id: UUID
@@ -198,6 +199,26 @@ class VehicleRecord(Record):
     def __hash__(self):
         return hash(self.__record_id)
 
+    @staticmethod
+    def build_record(record: dict) -> VehicleRecord:
+        vehicle_feature = feature_from_base64(record[VEHICLE_FEATURE])
+        license_plate_feature = feature_from_base64(record[LICENSE_PLATE_FEATURE])
+        license_plate_text = record[LICENSE_PLATE_TEXT] if license_plate_feature is not None else None
+
+        return VehicleRecord(record_id=UUID(record[RECORD_ID]),
+                             vehicle_id=record[VEHICLE_ID],
+                             camera_id=record[CAMERA_ID],
+                             vehicle_feature=vehicle_feature,
+                             license_plate_feature=license_plate_feature,
+                             license_plate_text=license_plate_text,
+                             timestamp=record[TIMESTAMP])
+
+    def to_protobuf(self, record_pb: networking_pb2.Record) -> None:
+        record_pb.record_id = self.__record_id.hex
+        record_pb.vehicle_id = self.__vehicle_id if self.is_annotated() else -1
+        record_pb.camera_id = self.__camera_id
+        record_pb.timestamp = self.__timestamp
+
 
 class Cluster(ABC):
     @abstractmethod
@@ -242,6 +263,10 @@ class Cluster(ABC):
 
     @abstractmethod
     def get_trace(self, road_graph: nx.MultiDiGraph, cameras_info: dict, *, project=True) -> Trace:
+        pass
+
+    @abstractmethod
+    def has_license_plate(self) -> bool:
         pass
 
     @abstractmethod
@@ -311,6 +336,9 @@ class VehicleRecordClusterCompact(Cluster):
     def get_trace(self, road_graph: nx.MultiDiGraph, cameras_info: dict, *, project=True) -> Trace:
         return get_trace(self.get_ordered_records(), road_graph, cameras_info, project=project)
 
+    def has_license_plate(self) -> bool:
+        return self.__centroid_license_plate_feature is not None and self.__centroid_license_plate_text is not None
+
     def __eq__(self, other):
         if isinstance(other, VehicleRecordClusterCompact):
             return self.__cluster_id == other.__cluster_id
@@ -319,6 +347,32 @@ class VehicleRecordClusterCompact(Cluster):
 
     def __hash__(self):
         return hash(self.__cluster_id)
+
+    @staticmethod
+    def from_protobuf(cluster_pb: networking_pb2.Cluster) -> VehicleRecordClusterCompact:
+        records = set()
+        for record_pb in cluster_pb.records:
+            records.add(VehicleRecordCompact.from_protobuf(record_pb))
+
+        cluster_id = UUID(cluster_pb.cluster_id)
+        centroid_vehicle_feature = np.array(cluster_pb.centroid_vehicle_feature)
+
+        centroid_license_plate_feature = None
+        if len(cluster_pb.centroid_license_plate_feature) != 0:
+            centroid_license_plate_feature = np.array(cluster_pb.centroid_license_plate_feature)
+
+        centroid_license_plate_text = None
+        if cluster_pb.centroid_license_plate_text != "":
+            centroid_license_plate_text = cluster_pb.centroid_license_plate_text
+
+        node_path = cluster_pb.node_path
+
+        return VehicleRecordClusterCompact(cluster_id=cluster_id,
+                                           centroid_vehicle_feature=centroid_vehicle_feature,
+                                           centroid_license_plate_feature=centroid_license_plate_feature,
+                                           centroid_license_plate_text=centroid_license_plate_text,
+                                           node_path=node_path,
+                                           records=records)
 
 
 class VehicleRecordCluster(Cluster):
@@ -389,6 +443,9 @@ class VehicleRecordCluster(Cluster):
     def get_trace(self, road_graph: nx.MultiDiGraph, cameras_info: dict, *, project=True) -> Trace:
         return get_trace(self.get_ordered_records(), road_graph, cameras_info, project=project)
 
+    def has_license_plate(self) -> bool:
+        return self.__number_of_license_plate_features != 0
+
     def __eq__(self, other):
         if isinstance(other, VehicleRecordCluster):
             return self.__cluster_id == other.__cluster_id
@@ -439,3 +496,18 @@ class VehicleRecordCluster(Cluster):
 
     def has_valid_path(self) -> bool:
         return self.has_path() and len(self.__path) > 0
+
+    def to_protobuf(self, cluster_pb: networking_pb2.Cluster) -> None:
+        cluster_pb.cluster_id = self.__cluster_id.hex
+        cluster_pb.centroid_vehicle_feature.extend(self.__centroid_vehicle_feature.tolist())
+
+        if self.has_license_plate():
+            cluster_pb.centroid_license_plate_feature.extend(self.__centroid_license_plate_feature.tolist())
+            cluster_pb.centroid_license_plate_text = self.get_centroid_license_plate_text()
+
+        if self.has_node_path():
+            cluster_pb.node_path.extend(self.__node_path)
+
+        for record in self.__records:
+            record_pb = cluster_pb.records.add()
+            record.to_protobuf(record_pb)
