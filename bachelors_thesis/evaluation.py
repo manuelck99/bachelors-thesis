@@ -10,7 +10,7 @@ from mappymatch.maps.nx.readers.osm_readers import parse_osmnx_graph, NetworkTyp
 from mappymatch.matchers.lcss.lcss import LCSSMatcher
 
 from util import get_trace, get_path, get_node_path, EPSG_32650
-from vehicle_record import VehicleRecord, VehicleRecordCluster
+from vehicle_record import Record, Cluster
 
 Precision = float
 Recall = float
@@ -25,12 +25,12 @@ logger = logging.getLogger(__name__)
 
 
 # Spatio-Temporal Vehicle Trajectory Recovery on Road Network Based on Traffic Camera Video Data
-def yu_ao_yan_cluster_evaluation(records: list[VehicleRecord],
-                                 clusters: set[VehicleRecordCluster]) -> tuple[Precision, Recall, F1_Score, Expansion]:
+def yu_ao_yan_cluster_evaluation(records: list[Record],
+                                 clusters: set[Cluster]) -> tuple[Precision, Recall, F1_Score, Expansion]:
     vehicle_records_count = defaultdict(int)
     for record in records:
         if record.is_annotated():
-            vehicle_records_count[record.vehicle_id] += 1
+            vehicle_records_count[record.get_vehicle_id()] += 1
 
     precision = 0.0
     recall = 0.0
@@ -39,7 +39,7 @@ def yu_ao_yan_cluster_evaluation(records: list[VehicleRecord],
         cluster_of_vehicle = find_cluster_of_vehicle(vehicle_id, clusters)
         number_of_records_of_vehicle_in_cluster = calculate_number_of_records_of_vehicle_in_cluster(vehicle_id,
                                                                                                     cluster_of_vehicle)
-        precision += number_of_records_of_vehicle_in_cluster / cluster_of_vehicle.size()
+        precision += number_of_records_of_vehicle_in_cluster / cluster_of_vehicle.get_size()
         recall += number_of_records_of_vehicle_in_cluster / vehicle_records_count[vehicle_id]
 
         for cluster in clusters:
@@ -57,7 +57,7 @@ def yu_ao_yan_cluster_evaluation(records: list[VehicleRecord],
     return precision, recall, f1_score, expansion
 
 
-def find_cluster_of_vehicle(vehicle_id: int, clusters: set[VehicleRecordCluster]) -> VehicleRecordCluster | None:
+def find_cluster_of_vehicle(vehicle_id: int, clusters: set[Cluster]) -> Cluster | None:
     max_number_of_records = -math.inf
     max_number_of_records_cluster = None
     for cluster in clusters:
@@ -68,17 +68,17 @@ def find_cluster_of_vehicle(vehicle_id: int, clusters: set[VehicleRecordCluster]
     return max_number_of_records_cluster
 
 
-def calculate_number_of_records_of_vehicle_in_cluster(vehicle_id: int, cluster: VehicleRecordCluster) -> int:
+def calculate_number_of_records_of_vehicle_in_cluster(vehicle_id: int, cluster: Cluster) -> int:
     count = 0
-    for record in cluster.records.values():
-        if record.is_annotated() and record.vehicle_id == vehicle_id:
+    for record in cluster.get_records():
+        if record.is_annotated() and record.get_vehicle_id() == vehicle_id:
             count += 1
     return count
 
 
 # A survey of trajectory distance measures and performance evaluation
-def su_liu_zheng_trajectory_evaluation(records: list[VehicleRecord],
-                                       clusters: set[VehicleRecordCluster],
+def su_liu_zheng_trajectory_evaluation(records: list[Record],
+                                       clusters: set[Cluster],
                                        road_graph: nx.MultiDiGraph,
                                        cameras_info: dict,
                                        *,
@@ -86,10 +86,10 @@ def su_liu_zheng_trajectory_evaluation(records: list[VehicleRecord],
     vehicle_records_dict = defaultdict(list)
     for record in records:
         if record.is_annotated():
-            vehicle_records_dict[record.vehicle_id].append(record)
+            vehicle_records_dict[record.get_vehicle_id()].append(record)
 
     for vehicle_records in vehicle_records_dict.values():
-        vehicle_records.sort(key=lambda r: r.timestamp)
+        vehicle_records.sort(key=lambda r: r.get_timestamp())
 
     road_graph_proj = ox.project_graph(road_graph, to_crs=EPSG_32650)
     stlc = 0.0
@@ -125,9 +125,9 @@ def su_liu_zheng_trajectory_evaluation(records: list[VehicleRecord],
     for vehicle_id, node_path in node_paths_dict.items():
         cluster_of_vehicle = find_cluster_of_vehicle(vehicle_id, clusters)
 
-        if cluster_of_vehicle.has_valid_path():
-            lcss += lcss_distance(cluster_of_vehicle.node_path, node_path, road_graph_proj, epsilon=10)
-            edr += edr_distance(cluster_of_vehicle.node_path, node_path, road_graph_proj, epsilon=10)
+        if cluster_of_vehicle.has_valid_node_path():
+            lcss += lcss_distance(cluster_of_vehicle.get_node_path(), node_path, road_graph_proj, epsilon=10)
+            edr += edr_distance(cluster_of_vehicle.get_node_path(), node_path, road_graph_proj, epsilon=10)
         else:
             logger.debug(f"Map Matching failed for vehicle {vehicle_id}:")
             logger.debug(cluster_of_vehicle.__repr__())
@@ -214,8 +214,8 @@ def edr_distance(
     return edr / max(n, m)
 
 
-def stlc_distance(trajectory: list[VehicleRecord],
-                  trajectory_gt: list[VehicleRecord],
+def stlc_distance(trajectory: list[Record],
+                  trajectory_gt: list[Record],
                   road_graph: nx.MultiDiGraph,
                   cameras_info: dict,
                   *,
@@ -233,8 +233,8 @@ def stlc_distance(trajectory: list[VehicleRecord],
     return 1 - stlc / 2.0
 
 
-def calculate_spatio_temporal_similarity(trajectory_1: list[VehicleRecord],
-                                         trajectory_2: list[VehicleRecord],
+def calculate_spatio_temporal_similarity(trajectory_1: list[Record],
+                                         trajectory_2: list[Record],
                                          road_graph: nx.MultiDiGraph,
                                          cameras_info: dict,
                                          *,
@@ -250,8 +250,8 @@ def calculate_spatio_temporal_similarity(trajectory_1: list[VehicleRecord],
     return similarity / len(trajectory_1)
 
 
-def calculate_spatial_distance(point: VehicleRecord,
-                               trajectory: list[VehicleRecord],
+def calculate_spatial_distance(point: Record,
+                               trajectory: list[Record],
                                road_graph: nx.MultiDiGraph,
                                cameras_info: dict) -> float:
     min_distance = math.inf
@@ -264,11 +264,11 @@ def calculate_spatial_distance(point: VehicleRecord,
     return min_distance
 
 
-def calculate_temporal_distance(point: VehicleRecord, trajectory: list[VehicleRecord]) -> float:
+def calculate_temporal_distance(point: Record, trajectory: list[Record]) -> float:
     min_distance = math.inf
-    timestamp = point.timestamp
+    timestamp = point.get_timestamp()
     for point_ in trajectory:
-        distance = abs(timestamp - point_.timestamp)
+        distance = abs(timestamp - point_.get_timestamp())
         if distance < min_distance:
             min_distance = distance
     return min_distance

@@ -20,7 +20,7 @@ def run(records_path: str,
 
     # Clustering
     clusters = cluster_records(records, use_gpu=use_gpu)
-    singleton_clusters = {cluster for cluster in clusters if cluster.size() == 1}
+    singleton_clusters = {cluster for cluster in clusters if cluster.get_size() == 1}
     logger.info(f"Number of clusters: {len(clusters)}")
     logger.info(f"Number of singleton clusters: {len(singleton_clusters)}")
     logger.info(f"Number of non-singleton clusters: {len(clusters) - len(singleton_clusters)}")

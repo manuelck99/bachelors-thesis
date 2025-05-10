@@ -12,7 +12,7 @@ from mappymatch.constructs.trace import Trace
 from pyproj import Transformer
 
 if TYPE_CHECKING:
-    from vehicle_record import VehicleRecord
+    from vehicle_record import Record
 
 OPT_PARAMS: list[float] = [-4.25994981e-06, -8.74119271e-06, 8.11700876e-06, -3.95042166e-06, 1.14014210e+02,
                            2.26438070e+01]
@@ -164,7 +164,7 @@ def edit_distance_gain(s1: str, s2: str) -> float:
         return -0.1
 
 
-def get_trace(records: list[VehicleRecord], road_graph: nx.MultiDiGraph, cameras_info: dict, *, project=True) -> Trace:
+def get_trace(records: list[Record], road_graph: nx.MultiDiGraph, cameras_info: dict, *, project=True) -> Trace:
     trace = list()
     for record in records:
         x, y = record.get_coordinates(road_graph, cameras_info)
@@ -177,7 +177,7 @@ def get_trace(records: list[VehicleRecord], road_graph: nx.MultiDiGraph, cameras
 def get_path(road_graph: nx.MultiDiGraph, path_df: pd.DataFrame) -> list[tuple[int, int, int]] | None:
     """
     Returns a path as an edge ``list``. This function doesn't check if *path_df* is empty. Additionally, if
-    one of the edges in *path_df* doesn't exist in *road_graph*, ``None`` is returned. Likewise if the resulting
+    one of the edges in *path_df* doesn't exist in *road_graph*, ``None`` is returned. Likewise, if the resulting
     edge ``list`` is not continuous.
 
     :param road_graph: NetworkX ``M̀ultiDiGraph``

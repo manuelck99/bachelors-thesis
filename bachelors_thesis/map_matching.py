@@ -25,7 +25,7 @@ def map_match(clusters: set[VehicleRecordCluster],
 
     t0 = time.time_ns()
     for cluster in clusters:
-        if cluster.size() < 3:
+        if cluster.get_size() < 3:
             skipped_clusters_count += 1
             continue
 
@@ -38,9 +38,9 @@ def map_match(clusters: set[VehicleRecordCluster],
             empty_paths_count += 1
             continue
 
-        cluster.path = get_path(road_graph, path_df)
+        cluster.set_path(get_path(road_graph, path_df))
         if cluster.has_valid_path():
-            cluster.node_path = get_node_path(cluster.path)
+            cluster.set_node_path(get_node_path(cluster.get_path()))
         else:
             invalid_paths_count += 1
     t1 = time.time_ns()
