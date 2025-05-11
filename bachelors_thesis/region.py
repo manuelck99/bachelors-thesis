@@ -3,7 +3,9 @@ from __future__ import annotations
 import json
 
 from util import load
-from vehicle_record import VehicleRecord, VehicleRecordCluster
+from vehicle_record import VehicleRecord, VehicleRecordCluster, VehicleRecordClusterCompact
+
+type RegionID = int | tuple[int, int]
 
 
 def load_regions(records_path: str,
@@ -31,12 +33,12 @@ def load_regions(records_path: str,
 
 
 class Region:
-    region_id: int | tuple[int, int]
+    region_id: RegionID
     is_auxiliary: bool
     records: list[VehicleRecord]
     clusters: set[VehicleRecordCluster]
 
-    def __init__(self, *, region_id: int | tuple[int, int], is_auxiliary: bool):
+    def __init__(self, *, region_id: RegionID, is_auxiliary: bool):
         self.region_id = region_id
         self.is_auxiliary = is_auxiliary
         self.records = list()
@@ -65,6 +67,32 @@ class Region:
 
     def __eq__(self, other):
         if isinstance(other, Region):
+            return self.is_auxiliary == other.is_auxiliary and self.region_id == other.region_id
+        else:
+            return False
+
+    def __hash__(self):
+        return hash((self.is_auxiliary, self.region_id))
+
+
+class RegionCompact:
+    region_id: RegionID
+    is_auxiliary: bool
+    clusters: set[VehicleRecordClusterCompact]
+
+    def __init__(self,
+                 *,
+                 region_id: RegionID,
+                 is_auxiliary: bool):
+        self.region_id = region_id
+        self.is_auxiliary = is_auxiliary
+        self.clusters = set()
+
+    def add_cluster(self, cluster: VehicleRecordClusterCompact) -> None:
+        self.clusters.add(cluster)
+
+    def __eq__(self, other):
+        if isinstance(other, RegionCompact):
             return self.is_auxiliary == other.is_auxiliary and self.region_id == other.region_id
         else:
             return False

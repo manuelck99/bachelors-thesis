@@ -1,17 +1,18 @@
 import logging
 from argparse import ArgumentParser
-from collections import defaultdict
 
 import zmq
 
 import networking_pb2
+from merging import find_clusters_to_merge
+from region import RegionID, RegionCompact
 from util import load
 from vehicle_record import VehicleRecordClusterCompact
 
 logger = logging.getLogger(__name__)
 
 
-def parse_region_id(region_id: str, is_auxiliary: bool) -> int | tuple[int, int]:
+def parse_region_id(region_id: str, is_auxiliary: bool) -> RegionID:
     if is_auxiliary:
         region_id_parts = region_id.split("-")
         return int(region_id_parts[0]), int(region_id_parts[1])
@@ -27,9 +28,13 @@ def run(records_path: str,
         use_gpu: bool) -> None:
     region_partitioning: dict = load(region_partitioning_path)
     regions_done = dict()
-    regions_clusters = defaultdict(set)
-    for region_id in region_partitioning.keys():
+    regions = dict()
+    for region_id, region in region_partitioning.items():
         regions_done[region_id] = False
+        if region["auxiliary"]:
+            regions[region_id] = RegionCompact(region_id=region_id, is_auxiliary=True)
+        else:
+            regions[region_id] = RegionCompact(region_id=region_id, is_auxiliary=False)
 
     context = zmq.Context()
     socket = context.socket(zmq.PULL)
@@ -46,7 +51,14 @@ def run(records_path: str,
             regions_done[region_id] = True
         else:
             cluster = VehicleRecordClusterCompact.from_protobuf(envelope.cluster)
-            regions_clusters[region_id].add(cluster)
+            regions[region_id].add_cluster(cluster)
+
+    clusters_to_merge = set()
+    for region in regions.values():
+        if region.is_auxiliary:
+            clusters_to_merge.update(find_clusters_to_merge(region, regions, region_partitioning))
+
+    # TODO: Do the actual merging and evaluation
 
 
 if __name__ == "__main__":
