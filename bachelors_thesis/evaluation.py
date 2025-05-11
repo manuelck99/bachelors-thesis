@@ -35,8 +35,13 @@ def yu_ao_yan_cluster_evaluation(records: list[Record],
     precision = 0.0
     recall = 0.0
     expansion = 0.0
+    skipped_vehicles_count = 0
     for vehicle_id in vehicle_records_count.keys():
         cluster_of_vehicle = find_cluster_of_vehicle(vehicle_id, clusters)
+        if cluster_of_vehicle is None:
+            skipped_vehicles_count += 1
+            continue
+
         number_of_records_of_vehicle_in_cluster = calculate_number_of_records_of_vehicle_in_cluster(vehicle_id,
                                                                                                     cluster_of_vehicle)
         precision += number_of_records_of_vehicle_in_cluster / cluster_of_vehicle.get_size()
@@ -48,7 +53,7 @@ def yu_ao_yan_cluster_evaluation(records: list[Record],
             if number_of_records_of_vehicle_in_cluster != 0:
                 expansion += 1.0
 
-    number_of_annotated_vehicles = len(vehicle_records_count)
+    number_of_annotated_vehicles = len(vehicle_records_count) - skipped_vehicles_count
     precision /= number_of_annotated_vehicles
     recall /= number_of_annotated_vehicles
     f1_score = (precision * recall) / (precision + recall)
@@ -93,12 +98,17 @@ def su_liu_zheng_trajectory_evaluation(records: list[Record],
 
     road_graph_proj = ox.project_graph(road_graph, to_crs=EPSG_32650)
     stlc = 0.0
+    skipped_vehicles_count = 0
     for vehicle_id in vehicle_records_dict.keys():
         cluster_of_vehicle = find_cluster_of_vehicle(vehicle_id, clusters)
+        if cluster_of_vehicle is None:
+            skipped_vehicles_count += 1
+            continue
+
         trajectory = cluster_of_vehicle.get_ordered_records()
         trajectory_gt = vehicle_records_dict[vehicle_id]
         stlc += stlc_distance(trajectory, trajectory_gt, road_graph_proj, cameras_info, gamma=0.5)
-    stlc /= len(vehicle_records_dict)
+    stlc /= len(vehicle_records_dict) - skipped_vehicles_count
 
     traces_dict = dict()
     for vehicle_id, vehicle_records in vehicle_records_dict.items():
@@ -121,22 +131,17 @@ def su_liu_zheng_trajectory_evaluation(records: list[Record],
 
     lcss = 0.0
     edr = 0.0
-    cluster_with_invalid_path_count = 0
+    skipped_vehicles_count = 0
     for vehicle_id, node_path in node_paths_dict.items():
         cluster_of_vehicle = find_cluster_of_vehicle(vehicle_id, clusters)
 
-        if cluster_of_vehicle.has_valid_node_path():
+        if cluster_of_vehicle is not None and cluster_of_vehicle.has_valid_node_path():
             lcss += lcss_distance(cluster_of_vehicle.get_node_path(), node_path, road_graph_proj, epsilon=10)
             edr += edr_distance(cluster_of_vehicle.get_node_path(), node_path, road_graph_proj, epsilon=10)
         else:
-            logger.debug(f"Map Matching failed for vehicle {vehicle_id}:")
-            logger.debug(cluster_of_vehicle.__repr__())
-            cluster_with_invalid_path_count += 1
+            skipped_vehicles_count += 1
 
-    if cluster_with_invalid_path_count > 0:
-        logger.warning(f"Map Matching failed for {cluster_with_invalid_path_count} vehicle(s)")
-
-    number_of_paths = len(node_paths_dict) - cluster_with_invalid_path_count
+    number_of_paths = len(node_paths_dict) - skipped_vehicles_count
     lcss /= number_of_paths
     edr /= number_of_paths
 
