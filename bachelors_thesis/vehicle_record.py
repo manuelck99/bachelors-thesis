@@ -355,11 +355,11 @@ class VehicleRecordClusterCompact(Cluster):
             records.add(VehicleRecordCompact.from_protobuf(record_pb))
 
         cluster_id = UUID(cluster_pb.cluster_id)
-        centroid_vehicle_feature = np.array(cluster_pb.centroid_vehicle_feature)
+        centroid_vehicle_feature = np.array(cluster_pb.centroid_vehicle_feature).astype(np.float32)
 
         centroid_license_plate_feature = None
         if len(cluster_pb.centroid_license_plate_feature) != 0:
-            centroid_license_plate_feature = np.array(cluster_pb.centroid_license_plate_feature)
+            centroid_license_plate_feature = np.array(cluster_pb.centroid_license_plate_feature).astype(np.float32)
 
         centroid_license_plate_text = None
         if cluster_pb.centroid_license_plate_text != "":

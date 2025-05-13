@@ -1,6 +1,7 @@
 import logging
 from argparse import ArgumentParser
 
+import networkx as nx
 import zmq
 
 import networking_pb2
@@ -26,7 +27,9 @@ def run(records_path: str,
         region_partitioning_path: str,
         map_match_proj_graph: bool,
         use_gpu: bool) -> None:
+    cameras_info: dict = load(cameras_info_path)
     region_partitioning: dict = load(region_partitioning_path)
+
     regions_done = dict()
     regions = dict()
     for region_id, region in region_partitioning.items():
@@ -56,9 +59,18 @@ def run(records_path: str,
     clusters_to_merge = set()
     for region in regions.values():
         if region.is_auxiliary:
-            clusters_to_merge.update(find_clusters_to_merge(region, regions, region_partitioning))
+            clusters_to_merge.update(find_clusters_to_merge(region,
+                                                            regions,
+                                                            region_partitioning=region_partitioning,
+                                                            cameras_info=cameras_info,
+                                                            use_gpu=use_gpu))
 
-    # TODO: Do the actual merging and evaluation
+    merging_graph = nx.Graph()
+    for u, v in clusters_to_merge:
+        merging_graph.add_edge(u, v)
+
+    for component in nx.connected_components(merging_graph):
+        print(component)
 
 
 if __name__ == "__main__":

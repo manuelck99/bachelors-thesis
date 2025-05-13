@@ -52,7 +52,7 @@ class TopKSearcher:
 
         xq_id_map = dict()
         for feature_id, top_k_ids in zip(features_ids, results):
-            xq_id_map[feature_id] = [self.xb_id_map[top_k_id] for top_k_id in top_k_ids]
+            xq_id_map[feature_id] = [self.xb_id_map[top_k_id] for top_k_id in top_k_ids if top_k_id != -1]
 
         return xq_id_map
 
