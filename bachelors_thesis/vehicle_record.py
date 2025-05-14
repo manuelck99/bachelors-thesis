@@ -8,9 +8,14 @@ from uuid import UUID, uuid4
 import networkx as nx
 import numpy as np
 from mappymatch.constructs.trace import Trace
+from mappymatch.maps.nx.nx_map import NxMap
+from mappymatch.maps.nx.readers.osm_readers import parse_osmnx_graph, NetworkType
+from mappymatch.matchers.lcss.lcss import LCSSMatcher
 
 import networking_pb2
-from util import feature_from_base64, normalize, calculate_similarity, edit_distance_gain, clip, get_trace
+from config import DIMENSION
+from util import feature_from_base64, normalize, calculate_similarity, edit_distance_gain, clip, get_trace, get_path, \
+    get_node_path
 
 RECORD_ID = "record_id"
 VEHICLE_ID = "vehicle_id"
@@ -246,6 +251,10 @@ class Cluster(ABC):
         pass
 
     @abstractmethod
+    def set_node_path(self, node_path: list[int]) -> None:
+        pass
+
+    @abstractmethod
     def has_node_path(self) -> bool:
         pass
 
@@ -280,7 +289,7 @@ class Cluster(ABC):
 
 class VehicleRecordClusterCompact(Cluster):
     __cluster_id: UUID
-    __records: set[VehicleRecordCompact]
+    __records: set[Record]
     __centroid_vehicle_feature: np.ndarray
     __centroid_license_plate_feature: np.ndarray | None
     __centroid_license_plate_text: str | None
@@ -289,7 +298,7 @@ class VehicleRecordClusterCompact(Cluster):
     def __init__(self,
                  *,
                  cluster_id: UUID,
-                 records: set[VehicleRecordCompact],
+                 records: set[Record],
                  centroid_vehicle_feature: np.ndarray,
                  centroid_license_plate_feature: np.ndarray | None,
                  centroid_license_plate_text: str | None,
@@ -318,6 +327,9 @@ class VehicleRecordClusterCompact(Cluster):
 
     def get_node_path(self) -> list[int] | None:
         return self.__node_path
+
+    def set_node_path(self, node_path: list[int]) -> None:
+        self.__node_path = node_path
 
     def has_node_path(self) -> bool:
         return self.__node_path is not None
@@ -373,6 +385,54 @@ class VehicleRecordClusterCompact(Cluster):
                                            centroid_license_plate_text=centroid_license_plate_text,
                                            node_path=node_path,
                                            records=records)
+
+    @staticmethod
+    def from_clusters(clusters: set[Cluster],
+                      road_graph: nx.MultiDiGraph,
+                      cameras_info: dict,
+                      project=True) -> VehicleRecordClusterCompact:
+        cluster_id = uuid4()
+
+        centroid_vehicle_feature = np.zeros(DIMENSION).astype(np.float32)
+        for cluster in clusters:
+            centroid_vehicle_feature += cluster.get_centroid_vehicle_feature()
+        centroid_vehicle_feature /= len(clusters)
+
+        centroid_license_plate_feature = np.zeros(DIMENSION).astype(np.float32)
+        centroid_license_plate_text_count = defaultdict(int)
+        number_of_clusters_with_license_plates = 0
+        for cluster in filter(lambda c: c.has_license_plate(), clusters):
+            number_of_clusters_with_license_plates += 1
+            centroid_license_plate_feature += cluster.get_centroid_license_plate_feature()
+            centroid_license_plate_text_count[cluster.get_centroid_license_plate_text()] += 1
+        centroid_license_plate_feature /= number_of_clusters_with_license_plates
+
+        records = list()
+        for cluster in clusters:
+            for record in cluster.get_records():
+                records.append(record)
+
+        records.sort(key=lambda r: r.get_timestamp())
+
+        road_map = NxMap(parse_osmnx_graph(road_graph, xy=project, network_type=NetworkType.DRIVE))
+        trace = get_trace(records, road_graph, cameras_info, project=project)
+        matcher = LCSSMatcher(road_map)
+        match_result = matcher.match_trace(trace)
+        path_df = match_result.path_to_dataframe()
+
+        node_path = None
+        if not path_df.empty:
+            path = get_path(road_graph, path_df)
+            if path is not None and len(path) > 0:
+                node_path = get_node_path(path)
+
+        return VehicleRecordClusterCompact(cluster_id=cluster_id,
+                                           centroid_vehicle_feature=centroid_vehicle_feature,
+                                           centroid_license_plate_feature=centroid_license_plate_feature,
+                                           centroid_license_plate_text=max(centroid_license_plate_text_count,
+                                                                           key=centroid_license_plate_text_count.get),
+                                           records=set(records),
+                                           node_path=node_path)
 
 
 class VehicleRecordCluster(Cluster):

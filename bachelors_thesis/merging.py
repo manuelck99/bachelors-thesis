@@ -1,10 +1,12 @@
 import math
 from uuid import UUID
 
+import networkx as nx
+
 from clustering import TopKSearcher
 from config import DIMENSION, NUMBER_OF_THREADS, K, MERGING_THRESHOLD
 from region import RegionID, RegionCompact
-from vehicle_record import Record, Cluster
+from vehicle_record import Record, Cluster, VehicleRecordClusterCompact
 
 
 def find_clusters_to_merge(aux_region: RegionCompact,
@@ -229,3 +231,28 @@ def is_record_in_nodes(record: Record, nodes: set[int], cameras_info: dict) -> b
     camera = cameras_info[camera_id]
     node_id = camera["node_id"]
     return node_id in nodes
+
+
+def merge_clusters(clusters: dict[UUID, Cluster],
+                   clusters_to_merge: set[tuple[UUID, UUID]],
+                   *,
+                   road_graph: nx.MultiDiGraph,
+                   cameras_info: dict,
+                   project=True) -> dict[UUID, Cluster]:
+    merging_graph = nx.Graph()
+    for i, j in clusters_to_merge:
+        merging_graph.add_edge(i, j)
+
+    for clusters_ids in nx.connected_components(merging_graph):
+        clusters_ = {clusters[cluster_id] for cluster_id in clusters_ids}
+
+        for cluster_id in clusters_ids:
+            del clusters[cluster_id]
+
+        cluster = VehicleRecordClusterCompact.from_clusters(clusters_,
+                                                            road_graph=road_graph,
+                                                            cameras_info=cameras_info,
+                                                            project=project)
+        clusters[cluster.get_cluster_id()] = cluster
+
+    return clusters

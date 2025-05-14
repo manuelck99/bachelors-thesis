@@ -1,13 +1,13 @@
 import logging
 from argparse import ArgumentParser
 
-import networkx as nx
 import zmq
 
 import networking_pb2
-from merging import find_clusters_to_merge
+from evaluation import yu_ao_yan_cluster_evaluation, su_liu_zheng_trajectory_evaluation
+from merging import find_clusters_to_merge, merge_clusters
 from region import RegionID, RegionCompact
-from util import load
+from util import load, load_graph
 from vehicle_record import VehicleRecordClusterCompact
 
 logger = logging.getLogger(__name__)
@@ -27,6 +27,7 @@ def run(records_path: str,
         region_partitioning_path: str,
         map_match_proj_graph: bool,
         use_gpu: bool) -> None:
+    road_graph = load_graph(road_graph_path)
     cameras_info: dict = load(cameras_info_path)
     region_partitioning: dict = load(region_partitioning_path)
 
@@ -65,12 +66,37 @@ def run(records_path: str,
                                                             cameras_info=cameras_info,
                                                             use_gpu=use_gpu))
 
-    merging_graph = nx.Graph()
-    for u, v in clusters_to_merge:
-        merging_graph.add_edge(u, v)
+    clusters = dict()
+    for region in regions.values():
+        for cluster in region.clusters:
+            clusters[cluster.get_cluster_id()] = cluster
 
-    for component in nx.connected_components(merging_graph):
-        print(component)
+    clusters = merge_clusters(clusters,
+                              clusters_to_merge,
+                              road_graph=road_graph,
+                              cameras_info=cameras_info,
+                              project=map_match_proj_graph)
+
+    clusters = set(clusters.values())
+    records = list()
+    for cluster in clusters:
+        records.extend(cluster.get_records())
+
+    precision, recall, f1_score, expansion = yu_ao_yan_cluster_evaluation(records, clusters)
+    logger.info(f"Precision: {precision}")
+    logger.info(f"Recall: {recall}")
+    logger.info(f"F1-Score: {f1_score}")
+    logger.info(f"Expansion: {expansion}")
+
+    # Trajectory evaluation
+    lcss, edr, stlc = su_liu_zheng_trajectory_evaluation(records,
+                                                         clusters,
+                                                         road_graph,
+                                                         cameras_info,
+                                                         project=map_match_proj_graph)
+    logger.info(f"LCSS distance: {lcss}")
+    logger.info(f"EDR distance: {edr}")
+    logger.info(f"STLC distance: {stlc}")
 
 
 if __name__ == "__main__":
