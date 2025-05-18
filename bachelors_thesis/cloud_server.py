@@ -4,7 +4,8 @@ from argparse import ArgumentParser
 import zmq
 
 import networking_pb2
-from evaluation import yu_ao_yan_cluster_evaluation, su_liu_zheng_trajectory_evaluation
+from evaluation import load_vehicle_clusters, cluster_evaluation_with_centralized_gt, \
+    trajectory_evaluation_with_centralized_gt
 from merging import find_clusters_to_merge, merge_clusters
 from region import RegionID, RegionCompact
 from util import load, load_graph
@@ -25,6 +26,7 @@ def run(records_path: str,
         road_graph_path: str,
         cameras_info_path: str,
         region_partitioning_path: str,
+        clusters_input_path: str,
         use_gpu: bool) -> None:
     road_graph = load_graph(road_graph_path)
     cameras_info: dict = load(cameras_info_path)
@@ -80,17 +82,21 @@ def run(records_path: str,
     for cluster in clusters:
         records.extend(cluster.get_records())
 
-    precision, recall, f1_score, expansion = yu_ao_yan_cluster_evaluation(records, clusters)
+    clusters_gt = load_vehicle_clusters(clusters_input_path)
+
+    precision, recall, f1_score, expansion = cluster_evaluation_with_centralized_gt(clusters_gt, clusters)
     logger.info(f"Precision: {precision}")
     logger.info(f"Recall: {recall}")
     logger.info(f"F1-Score: {f1_score}")
     logger.info(f"Expansion: {expansion}")
 
     # Trajectory evaluation
-    lcss, edr, stlc = su_liu_zheng_trajectory_evaluation(records,
-                                                         clusters,
-                                                         road_graph,
-                                                         cameras_info)
+    lcss, edr, stlc = trajectory_evaluation_with_centralized_gt(clusters_gt,
+                                                                clusters,
+                                                                road_graph,
+                                                                cameras_info,
+                                                                gamma=0.8,
+                                                                epsilon=50)
     logger.info(f"LCSS distance: {lcss}")
     logger.info(f"EDR distance: {edr}")
     logger.info(f"STLC distance: {stlc}")
@@ -125,6 +131,12 @@ if __name__ == "__main__":
         help="Path to the region partitioning file"
     )
     parser.add_argument(
+        "--clusters-input-path",
+        type=str,
+        required=True,
+        help="Path to the file, where ground-truth vehicle clusters should be loaded from"
+    )
+    parser.add_argument(
         "--use-gpu",
         action="store_true",
         help="Use all GPUs for similarity search, otherwise use only CPUs"
@@ -135,4 +147,5 @@ if __name__ == "__main__":
         args.road_graph_path,
         args.cameras_info_path,
         args.region_partitioning_path,
+        args.clusters_input_path,
         args.use_gpu)

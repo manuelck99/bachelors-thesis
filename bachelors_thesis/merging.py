@@ -17,23 +17,23 @@ def find_clusters_to_merge(aux_region: RegionCompact,
                            use_gpu=False) -> set[tuple[UUID, UUID]]:
     i, j = aux_region.region_id
 
-    aux_clusters_from_i_to_j = set()
-    aux_clusters_from_j_to_i = set()
+    aux_clusters_crossing_from_i_to_j = set()
+    aux_clusters_crossing_from_j_to_i = set()
     for cluster in aux_region.clusters:
         if cluster_crosses_from_i_to_j(cluster, region_partitioning[aux_region.region_id]["edges_i_to_j"]):
-            aux_clusters_from_i_to_j.add(cluster)
+            aux_clusters_crossing_from_i_to_j.add(cluster)
 
         if cluster_crosses_from_i_to_j(cluster, region_partitioning[aux_region.region_id]["edges_j_to_i"]):
-            aux_clusters_from_j_to_i.add(cluster)
+            aux_clusters_crossing_from_j_to_i.add(cluster)
 
     clusters_to_merge = set()
     aux_region_nodes = region_partitioning[aux_region.region_id]["nodes"]
     overlapping_nodes_i_ij = region_partitioning[i]["nodes"].intersection(aux_region_nodes)
     overlapping_nodes_ij_j = region_partitioning[j]["nodes"].intersection(aux_region_nodes)
-    if len(aux_clusters_from_i_to_j) != 0:
+    if len(aux_clusters_crossing_from_i_to_j) != 0:
         clusters_to_merge.update(find_clusters_crossing_from_i_to_j_to_merge(i,
                                                                              j,
-                                                                             aux_clusters_from_i_to_j,
+                                                                             aux_clusters_crossing_from_i_to_j,
                                                                              aux_region_nodes,
                                                                              overlapping_nodes_i_ij,
                                                                              overlapping_nodes_ij_j,
@@ -41,10 +41,10 @@ def find_clusters_to_merge(aux_region: RegionCompact,
                                                                              cameras_info=cameras_info,
                                                                              use_gpu=use_gpu))
 
-    if len(aux_clusters_from_j_to_i) != 0:
+    if len(aux_clusters_crossing_from_j_to_i) != 0:
         clusters_to_merge.update(find_clusters_crossing_from_i_to_j_to_merge(j,
                                                                              i,
-                                                                             aux_clusters_from_j_to_i,
+                                                                             aux_clusters_crossing_from_j_to_i,
                                                                              aux_region_nodes,
                                                                              overlapping_nodes_ij_j,
                                                                              overlapping_nodes_i_ij,
@@ -57,7 +57,7 @@ def find_clusters_to_merge(aux_region: RegionCompact,
 
 def find_clusters_crossing_from_i_to_j_to_merge(i: int,
                                                 j: int,
-                                                aux_clusters_from_i_to_j: set[Cluster],
+                                                aux_clusters_crossing_from_i_to_j: set[Cluster],
                                                 aux_region_nodes: set[int],
                                                 overlapping_nodes_i_ij: set[int],
                                                 overlapping_nodes_ij_j: set[int],
@@ -65,7 +65,7 @@ def find_clusters_crossing_from_i_to_j_to_merge(i: int,
                                                 *,
                                                 cameras_info: dict,
                                                 use_gpu=False) -> set[tuple[UUID, UUID]]:
-    aux_clusters_dict = {cluster.get_cluster_id(): cluster for cluster in aux_clusters_from_i_to_j}
+    aux_clusters_dict = {cluster.get_cluster_id(): cluster for cluster in aux_clusters_crossing_from_i_to_j}
     clusters_to_merge = set()
 
     clusters_i_ij = set()
@@ -74,7 +74,7 @@ def find_clusters_crossing_from_i_to_j_to_merge(i: int,
             clusters_i_ij.add(cluster)
 
     if len(clusters_i_ij) != 0:
-        results_i_ij = cluster_rough_search(clusters_i_ij, aux_clusters_from_i_to_j, use_gpu=use_gpu)
+        results_i_ij = cluster_rough_search(clusters_i_ij, aux_clusters_crossing_from_i_to_j, use_gpu=use_gpu)
 
         for cluster_id, candidate_clusters in results_i_ij.items():
             if len(candidate_clusters) == 0:
@@ -102,7 +102,7 @@ def find_clusters_crossing_from_i_to_j_to_merge(i: int,
             clusters_ij_j.add(cluster)
 
     if len(clusters_ij_j) != 0:
-        results_ij_j = cluster_rough_search(clusters_ij_j, aux_clusters_from_i_to_j, use_gpu=use_gpu)
+        results_ij_j = cluster_rough_search(clusters_ij_j, aux_clusters_crossing_from_i_to_j, use_gpu=use_gpu)
 
         for cluster_id, candidate_clusters in results_ij_j.items():
             if len(candidate_clusters) == 0:
