@@ -164,45 +164,34 @@ def edit_distance_gain(s1: str, s2: str) -> float:
         return -0.1
 
 
-def get_trace(records: list[Record], road_graph: nx.MultiDiGraph, cameras_info: dict, *, project=True) -> Trace:
+def get_trace(records: list[Record], road_graph: nx.MultiDiGraph, cameras_info: dict) -> Trace:
     trace = list()
     for record in records:
         x, y = record.get_coordinates(road_graph, cameras_info)
         trace.append([x, y])
 
     trace_df = pd.DataFrame(trace, columns=["longitude", "latitude"])
-    return Trace.from_dataframe(trace_df, lon_column="longitude", lat_column="latitude", xy=project)
+    return Trace.from_dataframe(trace_df, lon_column="longitude", lat_column="latitude", xy=True)
 
 
-def get_path(road_graph: nx.MultiDiGraph, path_df: pd.DataFrame) -> list[tuple[int, int, int]] | None:
+def get_node_path(road_graph: nx.MultiDiGraph, path_df: pd.DataFrame) -> list[int] | None:
     """
-    Returns a path as an edge ``list``. This function doesn't check if *path_df* is empty. Additionally, if
+    Returns a path as a node ``list``. This function doesn't check if *path_df* is empty. Additionally, if
     one of the edges in *path_df* doesn't exist in *road_graph*, ``None`` is returned. Likewise, if the resulting
-    edge ``list`` is not continuous.
+    path has edges that aren't continuous.
 
     :param road_graph: NetworkX ``M̀ultiDiGraph``
     :param path_df: Pandas ``DataFrame`` returned from mappymatch's ``MatchResult.path_to_dataframe()``
-    :return: path as an edge ``list``
+    :return: path as a node ``list``
     """
 
     edges = list()
     for _, (o, d, k) in path_df[["origin_junction_id", "destination_junction_id", "road_key"]].iterrows():
-        edges.append((o, d, k))
         if not road_graph.has_edge(o, d, k):
             return None
+        edges.append((o, d, k))
 
     if all(map(lambda e1, e2: e1[1] == e2[0], edges, edges[1:])):
-        return edges
+        return list(map(lambda e: e[0], edges)) + list(map(lambda e: e[1], edges[-1:]))
     else:
         return None
-
-
-def get_node_path(path: list[tuple[int, int, int]]) -> list[int]:
-    """
-    Returns a path as a node ``list``. This function doesn't check the validity of *path*.
-
-    :param path: path as an edge ``list``
-    :return: path as a node ``list``
-    """
-
-    return list(map(lambda e: e[0], path)) + list(map(lambda e: e[1], path[-1:]))

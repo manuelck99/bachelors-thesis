@@ -52,7 +52,6 @@ def run(records_path: str,
         region_partitioning_path: str,
         region: int,
         auxiliary_regions: list[tuple[int, int]],
-        map_match_proj_graph: bool,
         use_gpu: bool) -> None:
     region, aux_regions = load_regions(records_path,
                                        region_partitioning_path,
@@ -73,7 +72,7 @@ def run(records_path: str,
 
     road_graph = load_graph(road_graph_path)
     cameras_info: dict = load(cameras_info_path)
-    map_match(region.clusters, road_graph, cameras_info, project=map_match_proj_graph)
+    map_match(region.clusters, road_graph, cameras_info)
 
     context = zmq.Context()
     socket = context.socket(zmq.PUSH)
@@ -97,7 +96,7 @@ def run(records_path: str,
             f"Number of non-singleton clusters: {aux_region.number_of_clusters() - aux_region.number_of_singleton_clusters()}")
 
     for aux_region in aux_regions:
-        map_match(aux_region.clusters, road_graph, cameras_info, project=map_match_proj_graph)
+        map_match(aux_region.clusters, road_graph, cameras_info)
 
     for aux_region in aux_regions:
         send_clusters(socket, aux_region)
@@ -146,11 +145,6 @@ if __name__ == "__main__":
         help="IDs of the auxiliary regions this edge server should handle, format \\d+-\\d+"
     )
     parser.add_argument(
-        "--map-match-proj-graph",
-        action="store_true",
-        help="Use a projected graph for map matching"
-    )
-    parser.add_argument(
         "--use-gpu",
         action="store_true",
         help="Use all GPUs for similarity search, otherwise use only CPUs"
@@ -163,5 +157,4 @@ if __name__ == "__main__":
         args.region_partitioning_path,
         args.region,
         args.auxiliary_regions,
-        args.map_match_proj_graph,
         args.use_gpu)

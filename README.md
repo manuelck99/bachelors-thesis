@@ -3,10 +3,10 @@
 ## Centralized
 
 ```
-python centralized.py --records-path ../data/dataset/records/records-annotated.json \
+python centralized.py --records-path ../data/dataset/records-annotated.json \
  --road-graph-path ../data/road_graph/road_graph_ox_nsl_sim_sc.pickle \
- --cameras-info-path ../data/road_graph/road_graph_ox_nsl_sim_sc_cameras.pickle \
- --map-match-proj-graph --use-gpu
+ --cameras-info-path ../data/road_graph/road_graph_ox_nsl_sim_sc_cameras_annotated.pickle \
+ --use-gpu
 ```
 
 ## Distributed
@@ -14,21 +14,20 @@ python centralized.py --records-path ../data/dataset/records/records-annotated.j
 ### Cloud Server
 
 ```
-python cloud_server.py --records-path ../data/dataset/records/records-annotated.json \
+python cloud_server.py --records-path ../data/dataset/records-annotated.json \
  --road-graph-path ../data/road_graph/road_graph_ox_nsl_sim_sc.pickle \
- --cameras-info-path ../data/road_graph/road_graph_ox_nsl_sim_sc_cameras.pickle \
- --region-partitioning-path ../data/road_graph/region-partitioning-2.pickle \
- --map-match-proj-graph --use-gpu
+ --cameras-info-path ../data/road_graph/road_graph_ox_nsl_sim_sc_cameras_annotated.pickle \
+ --region-partitioning-path ../data/road_graph/region_partitioning_2_annotated.pickle \
+ --use-gpu
 ```
 
 ### Edge Server
 
 ```
-python edge_server.py --records-path ../data/dataset/records/records-annotated.json \
+python edge_server.py --records-path ../data/dataset/records-annotated.json \
  --road-graph-path ../data/road_graph/road_graph_ox_nsl_sim_sc.pickle \
- --cameras-info-path ../data/road_graph/road_graph_ox_nsl_sim_sc_cameras.pickle \
- --region-partitioning-path ../data/road_graph/region-partitioning-2.pickle \
- --region 0 \
- --auxiliary-regions 0-1 \
- --map-match-proj-graph --use-gpu
+ --cameras-info-path ../data/road_graph/road_graph_ox_nsl_sim_sc_cameras_annotated.pickle \
+ --region-partitioning-path ../data/road_graph/region_partitioning_2_annotated.pickle \
+ --region 0 --auxiliary-regions 0-1 \
+ --use-gpu
 ```

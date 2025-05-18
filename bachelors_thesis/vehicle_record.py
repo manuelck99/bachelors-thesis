@@ -14,7 +14,7 @@ from mappymatch.matchers.lcss.lcss import LCSSMatcher
 
 import networking_pb2
 from config import DIMENSION
-from util import feature_from_base64, normalize, calculate_similarity, edit_distance_gain, clip, get_trace, get_path, \
+from util import feature_from_base64, normalize, calculate_similarity, edit_distance_gain, clip, get_trace, \
     get_node_path
 
 RECORD_ID = "record_id"
@@ -271,7 +271,7 @@ class Cluster(ABC):
         pass
 
     @abstractmethod
-    def get_trace(self, road_graph: nx.MultiDiGraph, cameras_info: dict, *, project=True) -> Trace:
+    def get_trace(self, road_graph: nx.MultiDiGraph, cameras_info: dict) -> Trace:
         pass
 
     @abstractmethod
@@ -345,8 +345,8 @@ class VehicleRecordClusterCompact(Cluster):
         records.sort(key=lambda r: r.get_timestamp())
         return records
 
-    def get_trace(self, road_graph: nx.MultiDiGraph, cameras_info: dict, *, project=True) -> Trace:
-        return get_trace(self.get_ordered_records(), road_graph, cameras_info, project=project)
+    def get_trace(self, road_graph: nx.MultiDiGraph, cameras_info: dict) -> Trace:
+        return get_trace(self.get_ordered_records(), road_graph, cameras_info)
 
     def has_license_plate(self) -> bool:
         return self.__centroid_license_plate_feature is not None and self.__centroid_license_plate_text is not None
@@ -389,8 +389,7 @@ class VehicleRecordClusterCompact(Cluster):
     @staticmethod
     def from_clusters(clusters: set[Cluster],
                       road_graph: nx.MultiDiGraph,
-                      cameras_info: dict,
-                      project=True) -> VehicleRecordClusterCompact:
+                      cameras_info: dict) -> VehicleRecordClusterCompact:
         cluster_id = uuid4()
 
         centroid_vehicle_feature = np.zeros(DIMENSION).astype(np.float32)
@@ -414,17 +413,15 @@ class VehicleRecordClusterCompact(Cluster):
 
         records.sort(key=lambda r: r.get_timestamp())
 
-        road_map = NxMap(parse_osmnx_graph(road_graph, xy=project, network_type=NetworkType.DRIVE))
-        trace = get_trace(records, road_graph, cameras_info, project=project)
+        road_map = NxMap(parse_osmnx_graph(road_graph, xy=True, network_type=NetworkType.DRIVE))
+        trace = get_trace(records, road_graph, cameras_info)
         matcher = LCSSMatcher(road_map)
         match_result = matcher.match_trace(trace)
         path_df = match_result.path_to_dataframe()
 
         node_path = None
         if not path_df.empty:
-            path = get_path(road_graph, path_df)
-            if path is not None and len(path) > 0:
-                node_path = get_node_path(path)
+            node_path = get_node_path(road_graph, path_df)
 
         return VehicleRecordClusterCompact(cluster_id=cluster_id,
                                            centroid_vehicle_feature=centroid_vehicle_feature,
@@ -445,7 +442,6 @@ class VehicleRecordCluster(Cluster):
     __license_plate_text_count: dict[str, int]
     __weight_vehicle_similarity: float
     __weight_license_plate_similarity: float
-    __path: list[tuple[int, int, int]] | None
     __node_path: list[int] | None
 
     def __init__(self,
@@ -462,7 +458,6 @@ class VehicleRecordCluster(Cluster):
         self.__license_plate_text_count = defaultdict(int)
         self.__weight_vehicle_similarity = weight_vehicle_similarity
         self.__weight_license_plate_similarity = weight_license_plate_similarity
-        self.__path = None
         self.__node_path = None
 
     def get_cluster_id(self) -> UUID:
@@ -500,8 +495,8 @@ class VehicleRecordCluster(Cluster):
         records.sort(key=lambda r: r.get_timestamp())
         return records
 
-    def get_trace(self, road_graph: nx.MultiDiGraph, cameras_info: dict, *, project=True) -> Trace:
-        return get_trace(self.get_ordered_records(), road_graph, cameras_info, project=project)
+    def get_trace(self, road_graph: nx.MultiDiGraph, cameras_info: dict) -> Trace:
+        return get_trace(self.get_ordered_records(), road_graph, cameras_info)
 
     def has_license_plate(self) -> bool:
         return self.__number_of_license_plate_features != 0
@@ -544,18 +539,6 @@ class VehicleRecordCluster(Cluster):
                         + edit_distance_gain(centroid_license_plate_text, record.get_license_plate_text()))
         else:
             return clip(vehicle_similarity)
-
-    def get_path(self) -> list[tuple[int, int, int]] | None:
-        return self.__path
-
-    def set_path(self, path: list[tuple[int, int, int]]) -> None:
-        self.__path = path
-
-    def has_path(self) -> bool:
-        return self.__path is not None
-
-    def has_valid_path(self) -> bool:
-        return self.has_path() and len(self.__path) > 0
 
     def to_protobuf(self, cluster_pb: networking_pb2.Cluster) -> None:
         cluster_pb.cluster_id = self.__cluster_id.hex

@@ -13,7 +13,6 @@ logger = logging.getLogger(__name__)
 def run(records_path: str,
         road_graph_path: str,
         cameras_info_path: str,
-        map_match_proj_graph: bool,
         use_gpu: bool) -> None:
     records = load_records(records_path)
     logger.info(f"Number of records: {len(records)}")
@@ -28,7 +27,7 @@ def run(records_path: str,
     # Map-matching
     road_graph = load_graph(road_graph_path)
     cameras_info: dict = load(cameras_info_path)
-    map_match(clusters, road_graph, cameras_info, project=map_match_proj_graph)
+    map_match(clusters, road_graph, cameras_info)
 
     # Cluster evaluation
     precision, recall, f1_score, expansion = yu_ao_yan_cluster_evaluation(records, clusters)
@@ -41,8 +40,7 @@ def run(records_path: str,
     lcss, edr, stlc = su_liu_zheng_trajectory_evaluation(records,
                                                          clusters,
                                                          road_graph,
-                                                         cameras_info,
-                                                         project=map_match_proj_graph)
+                                                         cameras_info)
     logger.info(f"LCSS distance: {lcss}")
     logger.info(f"EDR distance: {edr}")
     logger.info(f"STLC distance: {stlc}")
@@ -71,11 +69,6 @@ if __name__ == "__main__":
         help="Path to the cameras information file"
     )
     parser.add_argument(
-        "--map-match-proj-graph",
-        action="store_true",
-        help="Use a projected graph for map matching"
-    )
-    parser.add_argument(
         "--use-gpu",
         action="store_true",
         help="Use all GPUs for similarity search, otherwise use only CPUs"
@@ -85,5 +78,4 @@ if __name__ == "__main__":
     run(args.records_path,
         args.road_graph_path,
         args.cameras_info_path,
-        args.map_match_proj_graph,
         args.use_gpu)

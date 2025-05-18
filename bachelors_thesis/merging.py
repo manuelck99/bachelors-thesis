@@ -237,8 +237,7 @@ def merge_clusters(clusters: dict[UUID, Cluster],
                    clusters_to_merge: set[tuple[UUID, UUID]],
                    *,
                    road_graph: nx.MultiDiGraph,
-                   cameras_info: dict,
-                   project=True) -> dict[UUID, Cluster]:
+                   cameras_info: dict) -> dict[UUID, Cluster]:
     merging_graph = nx.Graph()
     for i, j in clusters_to_merge:
         merging_graph.add_edge(i, j)
@@ -251,8 +250,7 @@ def merge_clusters(clusters: dict[UUID, Cluster],
 
         cluster = VehicleRecordClusterCompact.from_clusters(clusters_,
                                                             road_graph=road_graph,
-                                                            cameras_info=cameras_info,
-                                                            project=project)
+                                                            cameras_info=cameras_info)
         clusters[cluster.get_cluster_id()] = cluster
 
     return clusters

@@ -25,7 +25,6 @@ def run(records_path: str,
         road_graph_path: str,
         cameras_info_path: str,
         region_partitioning_path: str,
-        map_match_proj_graph: bool,
         use_gpu: bool) -> None:
     road_graph = load_graph(road_graph_path)
     cameras_info: dict = load(cameras_info_path)
@@ -74,8 +73,7 @@ def run(records_path: str,
     clusters = merge_clusters(clusters,
                               clusters_to_merge,
                               road_graph=road_graph,
-                              cameras_info=cameras_info,
-                              project=map_match_proj_graph)
+                              cameras_info=cameras_info)
 
     clusters = set(clusters.values())
     records = list()
@@ -92,8 +90,7 @@ def run(records_path: str,
     lcss, edr, stlc = su_liu_zheng_trajectory_evaluation(records,
                                                          clusters,
                                                          road_graph,
-                                                         cameras_info,
-                                                         project=map_match_proj_graph)
+                                                         cameras_info)
     logger.info(f"LCSS distance: {lcss}")
     logger.info(f"EDR distance: {edr}")
     logger.info(f"STLC distance: {stlc}")
@@ -128,11 +125,6 @@ if __name__ == "__main__":
         help="Path to the region partitioning file"
     )
     parser.add_argument(
-        "--map-match-proj-graph",
-        action="store_true",
-        help="Use a projected graph for map matching"
-    )
-    parser.add_argument(
         "--use-gpu",
         action="store_true",
         help="Use all GPUs for similarity search, otherwise use only CPUs"
@@ -143,5 +135,4 @@ if __name__ == "__main__":
         args.road_graph_path,
         args.cameras_info_path,
         args.region_partitioning_path,
-        args.map_match_proj_graph,
         args.use_gpu)

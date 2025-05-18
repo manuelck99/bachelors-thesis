@@ -6,7 +6,7 @@ from mappymatch.maps.nx.nx_map import NxMap
 from mappymatch.maps.nx.readers.osm_readers import parse_osmnx_graph, NetworkType
 from mappymatch.matchers.lcss.lcss import LCSSMatcher
 
-from util import get_path, get_node_path
+from util import get_node_path
 from vehicle_record import VehicleRecordCluster
 
 logger = logging.getLogger(__name__)
@@ -15,21 +15,19 @@ logger = logging.getLogger(__name__)
 # TODO: Try to do this in parallel
 def map_match(clusters: set[VehicleRecordCluster],
               road_graph: nx.MultiDiGraph,
-              cameras_info: dict,
-              *,
-              project=True) -> None:
-    road_map = NxMap(parse_osmnx_graph(road_graph, xy=project, network_type=NetworkType.DRIVE))
+              cameras_info: dict) -> None:
+    road_map = NxMap(parse_osmnx_graph(road_graph, xy=True, network_type=NetworkType.DRIVE))
     skipped_clusters_count = 0
     empty_paths_count = 0
     invalid_paths_count = 0
 
     t0 = time.time_ns()
     for cluster in clusters:
-        if cluster.get_size() < 3:
+        if cluster.get_size() < 2:
             skipped_clusters_count += 1
             continue
 
-        trace = cluster.get_trace(road_graph, cameras_info, project=project)
+        trace = cluster.get_trace(road_graph, cameras_info)
         matcher = LCSSMatcher(road_map)
         match_result = matcher.match_trace(trace)
         path_df = match_result.path_to_dataframe()
@@ -38,10 +36,8 @@ def map_match(clusters: set[VehicleRecordCluster],
             empty_paths_count += 1
             continue
 
-        cluster.set_path(get_path(road_graph, path_df))
-        if cluster.has_valid_path():
-            cluster.set_node_path(get_node_path(cluster.get_path()))
-        else:
+        cluster.set_node_path(get_node_path(road_graph, path_df))
+        if not cluster.has_valid_node_path():
             invalid_paths_count += 1
     t1 = time.time_ns()
 

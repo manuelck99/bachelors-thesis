@@ -9,7 +9,7 @@ from mappymatch.maps.nx.nx_map import NxMap
 from mappymatch.maps.nx.readers.osm_readers import parse_osmnx_graph, NetworkType
 from mappymatch.matchers.lcss.lcss import LCSSMatcher
 
-from util import get_trace, get_path, get_node_path, EPSG_32650
+from util import get_trace, get_node_path, EPSG_32650
 from vehicle_record import Record, Cluster
 
 Precision = float
@@ -85,9 +85,7 @@ def calculate_number_of_records_of_vehicle_in_cluster(vehicle_id: int, cluster: 
 def su_liu_zheng_trajectory_evaluation(records: list[Record],
                                        clusters: set[Cluster],
                                        road_graph: nx.MultiDiGraph,
-                                       cameras_info: dict,
-                                       *,
-                                       project=True) -> tuple[LCSS_Distance, EDR_Distance, STLC_Distance]:
+                                       cameras_info: dict) -> tuple[LCSS_Distance, EDR_Distance, STLC_Distance]:
     vehicle_records_dict = defaultdict(list)
     for record in records:
         if record.is_annotated():
@@ -112,10 +110,10 @@ def su_liu_zheng_trajectory_evaluation(records: list[Record],
 
     traces_dict = dict()
     for vehicle_id, vehicle_records in vehicle_records_dict.items():
-        trace = get_trace(vehicle_records, road_graph, cameras_info, project=project)
+        trace = get_trace(vehicle_records, road_graph, cameras_info)
         traces_dict[vehicle_id] = trace
 
-    road_map = NxMap(parse_osmnx_graph(road_graph, NetworkType.DRIVE, xy=project))
+    road_map = NxMap(parse_osmnx_graph(road_graph, NetworkType.DRIVE, xy=True))
     node_paths_dict = dict()
     for vehicle_id, trace in traces_dict.items():
         matcher = LCSSMatcher(road_map)
@@ -125,9 +123,9 @@ def su_liu_zheng_trajectory_evaluation(records: list[Record],
         if path_df.empty:
             continue
 
-        path = get_path(road_graph, path_df)
-        if path is not None and len(path) > 0:
-            node_paths_dict[vehicle_id] = get_node_path(path)
+        node_path = get_node_path(road_graph, path_df)
+        if node_path is not None and len(node_path) > 1:
+            node_paths_dict[vehicle_id] = node_path
 
     lcss = 0.0
     edr = 0.0
