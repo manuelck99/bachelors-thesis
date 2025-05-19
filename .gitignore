@@ -2,12 +2,9 @@
 __pycache__/
 .pytest_cache/
 cache/
-data/
 
 *.pickle
 *.csv
 *.svg
 *.png
 *.json
-
-!.gitkeep
