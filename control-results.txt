@@ -1,0 +1,26 @@
+INFO:__main__:Number of records: 7238
+INFO:clustering:Top K search time [ms]: 890.833543
+INFO:clustering:Clustering execution time [ms]: 1968.226546
+INFO:__main__:Number of clusters: 313
+INFO:__main__:Number of singleton clusters: 113
+INFO:__main__:Number of non-singleton clusters: 200
+INFO:map_matching:Map-Matching execution time [ms]: 28212.87143
+INFO:map_matching:Number of map-matching skipped clusters: 113
+INFO:map_matching:Number of map-matched clusters with an empty path: 6
+INFO:map_matching:Number of map-matched clusters with an invalid path: 0
+INFO:map_matching:Number of map-matched clusters: 194
+INFO:__main__:Precision: 0.9929277594493507
+INFO:__main__:Recall: 0.9622823528845371
+INFO:__main__:F1-Score: 0.48868244623937773
+INFO:__main__:Expansion: 1.8381502890173411
+INFO:__main__:LCSS distance: 0.04412040102728027
+INFO:__main__:EDR distance: 0.09588616641957418
+INFO:__main__:STLC distance: 0.012795970200839548
+
+INFO:__main__:Precision: 0.9779259670282375
+INFO:__main__:Recall: 0.763330501606752
+INFO:__main__:F1-Score: 0.42870233787623246
+INFO:__main__:Expansion: 2.213872832369942
+INFO:__main__:LCSS distance: 0.2941519314442513
+INFO:__main__:EDR distance: 0.5442391923304947
+INFO:__main__:STLC distance: 0.12444053829967411

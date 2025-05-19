@@ -30,7 +30,7 @@ def run(records_path: str,
     cameras_info: dict = load(cameras_info_path)
     map_match_clusters(clusters, road_graph, road_graph_path, cameras_info)
     map_matched_clusters = {cluster for cluster in clusters if cluster.has_valid_node_path()}
-    logger.info(f"Number of map-matched clusters: {len(clusters) - len(map_matched_clusters)}")
+    logger.info(f"Number of map-matched clusters: {len(map_matched_clusters)}")
 
     # Cluster evaluation
     precision, recall, f1_score, expansion = cluster_evaluation_with_record_gt(records, clusters)
