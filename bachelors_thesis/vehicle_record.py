@@ -8,14 +8,12 @@ from uuid import UUID, uuid4
 import networkx as nx
 import numpy as np
 from mappymatch.constructs.trace import Trace
-from mappymatch.maps.nx.nx_map import NxMap
-from mappymatch.maps.nx.readers.osm_readers import parse_osmnx_graph, NetworkType
-from mappymatch.matchers.lcss.lcss import LCSSMatcher
 
 import networking_pb2
 from config import DIMENSION
+from map_matching import map_match_records
 from util import feature_from_base64, normalize, calculate_similarity, edit_distance_gain, clip, get_trace, \
-    get_node_path
+    get_trace_as_list
 
 RECORD_ID = "record_id"
 VEHICLE_ID = "vehicle_id"
@@ -261,6 +259,10 @@ class Cluster(ABC):
         pass
 
     @abstractmethod
+    def get_ordered_records(self) -> list[Record]:
+        pass
+
+    @abstractmethod
     def get_centroid_vehicle_feature(self) -> np.ndarray:
         pass
 
@@ -277,7 +279,7 @@ class Cluster(ABC):
         pass
 
     @abstractmethod
-    def set_node_path(self, node_path: list[int]) -> None:
+    def set_node_path(self, node_path: list[int] | None) -> None:
         pass
 
     @abstractmethod
@@ -293,11 +295,11 @@ class Cluster(ABC):
         pass
 
     @abstractmethod
-    def get_ordered_records(self) -> list[Record]:
+    def get_trace(self, road_graph: nx.MultiDiGraph, cameras_info: dict) -> Trace:
         pass
 
     @abstractmethod
-    def get_trace(self, road_graph: nx.MultiDiGraph, cameras_info: dict) -> Trace:
+    def get_trace_as_list(self, road_graph: nx.MultiDiGraph, cameras_info: dict) -> list[list[float]]:
         pass
 
     @abstractmethod
@@ -342,6 +344,11 @@ class VehicleRecordClusterCompact(Cluster):
     def get_records(self) -> set[Record]:
         return self.__records
 
+    def get_ordered_records(self) -> list[Record]:
+        records = list(self.__records)
+        records.sort(key=lambda r: r.get_timestamp())
+        return records
+
     def get_centroid_vehicle_feature(self) -> np.ndarray:
         return self.__centroid_vehicle_feature
 
@@ -354,7 +361,7 @@ class VehicleRecordClusterCompact(Cluster):
     def get_node_path(self) -> list[int] | None:
         return self.__node_path
 
-    def set_node_path(self, node_path: list[int]) -> None:
+    def set_node_path(self, node_path: list[int] | None) -> None:
         self.__node_path = node_path
 
     def has_node_path(self) -> bool:
@@ -366,13 +373,11 @@ class VehicleRecordClusterCompact(Cluster):
     def get_size(self) -> int:
         return len(self.__records)
 
-    def get_ordered_records(self) -> list[Record]:
-        records = list(self.__records)
-        records.sort(key=lambda r: r.get_timestamp())
-        return records
-
     def get_trace(self, road_graph: nx.MultiDiGraph, cameras_info: dict) -> Trace:
         return get_trace(self.get_ordered_records(), road_graph, cameras_info)
+
+    def get_trace_as_list(self, road_graph: nx.MultiDiGraph, cameras_info: dict) -> list[list[float]]:
+        return get_trace_as_list(self.get_ordered_records(), road_graph, cameras_info)
 
     def has_license_plate(self) -> bool:
         return self.__centroid_license_plate_feature is not None
@@ -456,18 +461,9 @@ class VehicleRecordClusterCompact(Cluster):
         records = list()
         for cluster in clusters:
             records.extend(cluster.get_records())
-
         records.sort(key=lambda r: r.get_timestamp())
 
-        road_map = NxMap(parse_osmnx_graph(road_graph, xy=True, network_type=NetworkType.DRIVE))
-        trace = get_trace(records, road_graph, cameras_info)
-        matcher = LCSSMatcher(road_map)
-        match_result = matcher.match_trace(trace)
-        path_df = match_result.path_to_dataframe()
-
-        node_path = None
-        if not path_df.empty:
-            node_path = get_node_path(road_graph, path_df)
+        node_path = map_match_records(records, road_graph, cameras_info)
 
         return VehicleRecordClusterCompact(cluster_id=cluster_id,
                                            centroid_vehicle_feature=centroid_vehicle_feature,
@@ -533,7 +529,7 @@ class VehicleRecordCluster(Cluster):
     def get_node_path(self) -> list[int] | None:
         return self.__node_path
 
-    def set_node_path(self, node_path: list[int]) -> None:
+    def set_node_path(self, node_path: list[int] | None) -> None:
         self.__node_path = node_path
 
     def has_node_path(self) -> bool:
@@ -552,6 +548,9 @@ class VehicleRecordCluster(Cluster):
 
     def get_trace(self, road_graph: nx.MultiDiGraph, cameras_info: dict) -> Trace:
         return get_trace(self.get_ordered_records(), road_graph, cameras_info)
+
+    def get_trace_as_list(self, road_graph: nx.MultiDiGraph, cameras_info: dict) -> list[list[float]]:
+        return get_trace_as_list(self.get_ordered_records(), road_graph, cameras_info)
 
     def has_license_plate(self) -> bool:
         return self.__number_of_license_plate_features != 0

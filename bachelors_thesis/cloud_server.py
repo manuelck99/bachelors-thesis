@@ -4,8 +4,8 @@ from argparse import ArgumentParser
 import zmq
 
 import networking_pb2
-from evaluation import load_vehicle_clusters, cluster_evaluation_with_centralized_gt, \
-    trajectory_evaluation_with_centralized_gt
+from evaluation import load_vehicle_clusters, cluster_evaluation_with_cluster_gt, \
+    trajectory_evaluation_with_cluster_gt
 from merging import find_clusters_to_merge, merge_clusters
 from region import RegionID, RegionCompact
 from util import load, load_graph
@@ -78,25 +78,21 @@ def run(records_path: str,
                               cameras_info=cameras_info)
 
     clusters = set(clusters.values())
-    records = list()
-    for cluster in clusters:
-        records.extend(cluster.get_records())
-
     clusters_gt = load_vehicle_clusters(clusters_input_path)
 
-    precision, recall, f1_score, expansion = cluster_evaluation_with_centralized_gt(clusters_gt, clusters)
+    precision, recall, f1_score, expansion = cluster_evaluation_with_cluster_gt(clusters_gt, clusters)
     logger.info(f"Precision: {precision}")
     logger.info(f"Recall: {recall}")
     logger.info(f"F1-Score: {f1_score}")
     logger.info(f"Expansion: {expansion}")
 
     # Trajectory evaluation
-    lcss, edr, stlc = trajectory_evaluation_with_centralized_gt(clusters_gt,
-                                                                clusters,
-                                                                road_graph,
-                                                                cameras_info,
-                                                                gamma=0.8,
-                                                                epsilon=50)
+    lcss, edr, stlc = trajectory_evaluation_with_cluster_gt(clusters_gt,
+                                                            clusters,
+                                                            road_graph,
+                                                            cameras_info,
+                                                            gamma=0.8,
+                                                            epsilon=50)
     logger.info(f"LCSS distance: {lcss}")
     logger.info(f"EDR distance: {edr}")
     logger.info(f"STLC distance: {stlc}")

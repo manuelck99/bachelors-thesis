@@ -1,17 +1,14 @@
 import json
-import logging
 import math
 from collections import defaultdict
 
 import networkx as nx
 import numpy as np
 import osmnx as ox
-from mappymatch.maps.nx.nx_map import NxMap
-from mappymatch.maps.nx.readers.osm_readers import parse_osmnx_graph, NetworkType
-from mappymatch.matchers.lcss.lcss import LCSSMatcher
 
 from config import NUMBER_OF_ANNOTATED_VEHICLES
-from util import get_trace, get_node_path, EPSG_32650
+from map_matching import map_match_traces
+from util import EPSG_32650, get_trace_as_list
 from vehicle_record import Record, Cluster, VehicleRecordCluster, VehicleRecordClusterCompact
 
 Precision = float
@@ -22,8 +19,6 @@ Expansion = float
 LCSS_Distance = float
 EDR_Distance = float
 STLC_Distance = float
-
-logger = logging.getLogger(__name__)
 
 
 def cluster_evaluation_with_record_gt(records_gt: list[Record],
@@ -63,8 +58,8 @@ def cluster_evaluation_with_record_gt(records_gt: list[Record],
     return precision, recall, f1_score, expansion
 
 
-def cluster_evaluation_with_centralized_gt(clusters_gt: set[Cluster],
-                                           clusters: set[Cluster]) -> tuple[Precision, Recall, F1_Score, Expansion]:
+def cluster_evaluation_with_cluster_gt(clusters_gt: set[Cluster],
+                                       clusters: set[Cluster]) -> tuple[Precision, Recall, F1_Score, Expansion]:
     precision = 0.0
     recall = 0.0
     expansion = 0.0
@@ -97,6 +92,7 @@ def cluster_evaluation_with_centralized_gt(clusters_gt: set[Cluster],
 def trajectory_evaluation_with_record_gt(records_gt: list[Record],
                                          clusters: set[Cluster],
                                          road_graph: nx.MultiDiGraph,
+                                         road_graph_path: str,
                                          cameras_info: dict,
                                          *,
                                          gamma: float,
@@ -125,21 +121,19 @@ def trajectory_evaluation_with_record_gt(records_gt: list[Record],
 
     traces_dict = dict()
     for vehicle_id, vehicle_records in vehicle_records_dict.items():
-        trace = get_trace(vehicle_records, road_graph, cameras_info)
+        trace = get_trace_as_list(vehicle_records, road_graph, cameras_info)
         traces_dict[vehicle_id] = trace
 
-    road_map = NxMap(parse_osmnx_graph(road_graph, NetworkType.DRIVE, xy=True))
-    node_paths_dict = dict()
+    vehicle_ids = list()
+    traces = list()
     for vehicle_id, trace in traces_dict.items():
-        matcher = LCSSMatcher(road_map)
-        match_result = matcher.match_trace(trace)
-        path_df = match_result.path_to_dataframe()
+        vehicle_ids.append(vehicle_id)
+        traces.append(trace)
 
-        if path_df.empty:
-            continue
-
-        node_path = get_node_path(road_graph, path_df)
-        if node_path is not None and len(node_path) > 1:
+    node_paths_dict = dict()
+    node_paths = map_match_traces(traces, road_graph_path)
+    for vehicle_id, node_path in zip(vehicle_ids, node_paths):
+        if node_path is not None:
             node_paths_dict[vehicle_id] = node_path
 
     lcss = 0.0
@@ -161,13 +155,13 @@ def trajectory_evaluation_with_record_gt(records_gt: list[Record],
     return lcss, edr, stlc
 
 
-def trajectory_evaluation_with_centralized_gt(clusters_gt: set[Cluster],
-                                              clusters: set[Cluster],
-                                              road_graph: nx.MultiDiGraph,
-                                              cameras_info: dict,
-                                              *,
-                                              gamma: float,
-                                              epsilon: float) -> tuple[
+def trajectory_evaluation_with_cluster_gt(clusters_gt: set[Cluster],
+                                          clusters: set[Cluster],
+                                          road_graph: nx.MultiDiGraph,
+                                          cameras_info: dict,
+                                          *,
+                                          gamma: float,
+                                          epsilon: float) -> tuple[
     LCSS_Distance, EDR_Distance, STLC_Distance]:
     road_graph_proj = ox.project_graph(road_graph, to_crs=EPSG_32650)
     stlc = 0.0

@@ -3,7 +3,7 @@ from argparse import ArgumentParser
 
 from clustering import cluster_records
 from evaluation import cluster_evaluation_with_record_gt, trajectory_evaluation_with_record_gt, save_vehicle_clusters
-from map_matching import map_match
+from map_matching import map_match_clusters
 from util import load, load_graph
 from vehicle_record import load_records
 
@@ -28,7 +28,9 @@ def run(records_path: str,
     # Map-matching
     road_graph = load_graph(road_graph_path)
     cameras_info: dict = load(cameras_info_path)
-    map_match(clusters, road_graph, cameras_info)
+    map_match_clusters(clusters, road_graph, road_graph_path, cameras_info)
+    map_matched_clusters = {cluster for cluster in clusters if cluster.has_valid_node_path()}
+    logger.info(f"Number of map-matched clusters: {len(clusters) - len(map_matched_clusters)}")
 
     # Cluster evaluation
     precision, recall, f1_score, expansion = cluster_evaluation_with_record_gt(records, clusters)
@@ -41,6 +43,7 @@ def run(records_path: str,
     lcss, edr, stlc = trajectory_evaluation_with_record_gt(records,
                                                            clusters,
                                                            road_graph,
+                                                           road_graph_path,
                                                            cameras_info,
                                                            gamma=0.8,
                                                            epsilon=50)

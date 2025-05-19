@@ -1,49 +1,81 @@
-import logging
-import time
+from __future__ import annotations
+
+import math
+from multiprocessing import Pool
+from typing import TYPE_CHECKING
 
 import networkx as nx
 from mappymatch.maps.nx.nx_map import NxMap
 from mappymatch.maps.nx.readers.osm_readers import parse_osmnx_graph, NetworkType
 from mappymatch.matchers.lcss.lcss import LCSSMatcher
 
-from util import get_node_path
-from vehicle_record import VehicleRecordCluster
+from util import load_graph, get_trace, get_trace_from_list, get_node_path
 
-logger = logging.getLogger(__name__)
+if TYPE_CHECKING:
+    from vehicle_record import VehicleRecordCluster, Record
 
 
-# TODO: Try to do this in parallel
-def map_match(clusters: set[VehicleRecordCluster],
-              road_graph: nx.MultiDiGraph,
-              cameras_info: dict) -> None:
-    road_map = NxMap(parse_osmnx_graph(road_graph, xy=True, network_type=NetworkType.DRIVE))
-    skipped_clusters_count = 0
-    empty_paths_count = 0
-    invalid_paths_count = 0
-
-    t0 = time.time_ns()
+def map_match_clusters(clusters: set[VehicleRecordCluster],
+                       road_graph: nx.MultiDiGraph,
+                       road_graph_path: str,
+                       cameras_info: dict) -> None:
+    clusters_to_map_match = list()
     for cluster in clusters:
-        if cluster.get_size() < 2:
-            skipped_clusters_count += 1
-            continue
+        if cluster.get_size() >= 2:
+            clusters_to_map_match.append(cluster)
 
-        trace = cluster.get_trace(road_graph, cameras_info)
+    traces = list()
+    for cluster in clusters_to_map_match:
+        trace = cluster.get_trace_as_list(road_graph, cameras_info)
+        traces.append(trace)
+
+    node_paths = map_match_traces(traces, road_graph_path)
+    for node_path, cluster in zip(node_paths, clusters_to_map_match):
+        cluster.set_node_path(node_path)
+
+
+def map_match_records(records: list[Record], road_graph: nx.MultiDiGraph, cameras_info: dict) -> list[int] | None:
+    trace = get_trace(records, road_graph, cameras_info)
+
+    road_map = NxMap(parse_osmnx_graph(road_graph, network_type=NetworkType.DRIVE, xy=True))
+    matcher = LCSSMatcher(road_map)
+    match_result = matcher.match_trace(trace)
+    path_df = match_result.path_to_dataframe()
+
+    if path_df.empty:
+        return None
+    else:
+        return get_node_path(path_df, road_graph)
+
+
+def map_match_traces(traces: list[list[list[float]]], road_graph_path: str) -> list[list[int] | None]:
+    number_of_processes = 4
+    number_of_traces = len(traces)
+    chunk_size = math.ceil(number_of_traces / number_of_processes)
+    traces_chunks = [traces[i:i + chunk_size] for i in range(0, number_of_traces, chunk_size)]
+
+    args = [(traces_chunk, road_graph_path) for traces_chunk in traces_chunks]
+    with Pool(processes=number_of_processes) as pool:
+        node_paths = pool.starmap(_map_match_traces, args)
+    node_paths = [node_path for node_paths_chunk in node_paths for node_path in node_paths_chunk]
+
+    return node_paths
+
+
+def _map_match_traces(traces: list[list[list[float]]], road_graph_path: str) -> list[list[int] | None]:
+    road_graph = load_graph(road_graph_path)
+    road_map = NxMap(parse_osmnx_graph(road_graph, network_type=NetworkType.DRIVE, xy=True))
+
+    node_paths = list()
+    for trace in traces:
+        trace = get_trace_from_list(trace)
         matcher = LCSSMatcher(road_map)
         match_result = matcher.match_trace(trace)
         path_df = match_result.path_to_dataframe()
 
         if path_df.empty:
-            empty_paths_count += 1
-            continue
+            node_paths.append(None)
+        else:
+            node_paths.append(get_node_path(path_df, road_graph))
 
-        cluster.set_node_path(get_node_path(road_graph, path_df))
-        if not cluster.has_valid_node_path():
-            invalid_paths_count += 1
-    t1 = time.time_ns()
-
-    logger.info(f"Map-Matching execution time [ms]: {(t1 - t0) / 1000 / 1000}")
-    logger.info(f"Number of map-matching skipped clusters: {skipped_clusters_count}")
-    logger.info(f"Number of map-matched clusters with an empty path: {empty_paths_count}")
-    logger.info(f"Number of map-matched clusters with an invalid path: {invalid_paths_count}")
-    logger.info(
-        f"Number of map-matched clusters: {len(clusters) - (skipped_clusters_count + empty_paths_count + invalid_paths_count)}")
+    return node_paths

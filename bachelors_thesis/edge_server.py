@@ -1,15 +1,14 @@
 import logging
 from argparse import ArgumentParser, ArgumentTypeError
+from multiprocessing import Process
 
 import zmq
 
 import networking_pb2
 from clustering import cluster_records
-from map_matching import map_match
-from region import load_regions, Region
-from util import load, load_graph
-
-logger = logging.getLogger(__name__)
+from map_matching import map_match_clusters
+from region import Region, load_region, load_auxiliary_region
+from util import load_graph, load
 
 
 def parse_auxiliary_region(s: str) -> tuple[int, int]:
@@ -46,60 +45,84 @@ def send_clusters(socket, region: Region) -> None:
     socket.send(envelope.SerializeToString())
 
 
+def process_region(records_path: str,
+                   road_graph_path: str,
+                   cameras_info_path: str,
+                   region_partitioning_path: str,
+                   region_id: int,
+                   use_gpu: bool) -> None:
+    region = load_region(records_path,
+                         region_partitioning_path,
+                         region_id)
+
+    clusters = cluster_records(region.records, use_gpu=use_gpu)
+    region.clusters = clusters
+
+    road_graph = load_graph(road_graph_path)
+    cameras_info: dict = load(cameras_info_path)
+    map_match_clusters(region.clusters, road_graph, road_graph_path, cameras_info)
+
+    context = zmq.Context()
+    socket = context.socket(zmq.PUSH)
+    socket.connect("tcp://localhost:5555")
+    send_clusters(socket, region)
+
+
+def process_auxiliary_region(records_path: str,
+                             road_graph_path: str,
+                             cameras_info_path: str,
+                             region_partitioning_path: str,
+                             aux_region_id: tuple[int, int],
+                             use_gpu: bool) -> None:
+    aux_region = load_auxiliary_region(records_path,
+                                       region_partitioning_path,
+                                       aux_region_id)
+
+    clusters = cluster_records(aux_region.records, use_gpu=use_gpu)
+    aux_region.clusters = clusters
+
+    road_graph = load_graph(road_graph_path)
+    cameras_info: dict = load(cameras_info_path)
+    map_match_clusters(aux_region.clusters, road_graph, road_graph_path, cameras_info)
+
+    context = zmq.Context()
+    socket = context.socket(zmq.PUSH)
+    socket.connect("tcp://localhost:5555")
+    send_clusters(socket, aux_region)
+
+
 def run(records_path: str,
         road_graph_path: str,
         cameras_info_path: str,
         region_partitioning_path: str,
         region: int,
-        auxiliary_regions: list[tuple[int, int]],
+        aux_regions: list[tuple[int, int]],
         use_gpu: bool) -> None:
-    region, aux_regions = load_regions(records_path,
-                                       region_partitioning_path,
-                                       region,
-                                       auxiliary_regions)
+    processes = list()
 
-    # Region
-    logger.info(f"Number of region {region.region_id} records: {region.number_of_records()}")
-
-    clusters = cluster_records(region.records, use_gpu=use_gpu)
-    region.clusters = clusters
-
-    logger.info(f"Region {region.region_id}:")
-    logger.info(f"Number of clusters: {region.number_of_clusters()}")
-    logger.info(f"Number of singleton clusters: {region.number_of_singleton_clusters()}")
-    logger.info(
-        f"Number of non-singleton clusters: {region.number_of_clusters() - region.number_of_singleton_clusters()}")
-
-    road_graph = load_graph(road_graph_path)
-    cameras_info: dict = load(cameras_info_path)
-    map_match(region.clusters, road_graph, cameras_info)
-
-    context = zmq.Context()
-    socket = context.socket(zmq.PUSH)
-    socket.connect("tcp://localhost:5555")
-
-    send_clusters(socket, region)
-
-    # Auxiliary regions
-    for aux_region in aux_regions:
-        logger.info(f"Number of auxiliary region {aux_region.region_id} records: {aux_region.number_of_records()}")
+    process = Process(target=process_region,
+                      args=(records_path,
+                            road_graph_path,
+                            cameras_info_path,
+                            region_partitioning_path,
+                            region,
+                            use_gpu))
+    processes.append(process)
 
     for aux_region in aux_regions:
-        clusters = cluster_records(aux_region.records, use_gpu=use_gpu)
-        aux_region.clusters = clusters
+        process = Process(target=process_auxiliary_region, args=(records_path,
+                                                                 road_graph_path,
+                                                                 cameras_info_path,
+                                                                 region_partitioning_path,
+                                                                 aux_region,
+                                                                 use_gpu))
+        processes.append(process)
 
-    for aux_region in aux_regions:
-        logger.info(f"Auxiliary region {aux_region.region_id}:")
-        logger.info(f"Number of clusters: {aux_region.number_of_clusters()}")
-        logger.info(f"Number of singleton clusters: {aux_region.number_of_singleton_clusters()}")
-        logger.info(
-            f"Number of non-singleton clusters: {aux_region.number_of_clusters() - aux_region.number_of_singleton_clusters()}")
+    for process in processes:
+        process.start()
 
-    for aux_region in aux_regions:
-        map_match(aux_region.clusters, road_graph, cameras_info)
-
-    for aux_region in aux_regions:
-        send_clusters(socket, aux_region)
+    for process in processes:
+        process.join()
 
 
 if __name__ == "__main__":

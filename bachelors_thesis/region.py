@@ -8,12 +8,10 @@ from vehicle_record import VehicleRecord, VehicleRecordCluster, VehicleRecordClu
 type RegionID = int | tuple[int, int]
 
 
-def load_regions(records_path: str,
-                 region_partitioning_path: str,
-                 region_id: int,
-                 aux_region_ids: list[tuple[int, int]]) -> tuple[Region, list[Region]]:
+def load_region(records_path: str,
+                region_partitioning_path: str,
+                region_id: int) -> Region:
     region = Region(region_id=region_id, is_auxiliary=False)
-    aux_regions = [Region(region_id=aux_region_id, is_auxiliary=True) for aux_region_id in aux_region_ids]
 
     region_partitioning: dict = load(region_partitioning_path)
     with open(records_path, mode="r", encoding="utf-8") as file:
@@ -24,12 +22,24 @@ def load_regions(records_path: str,
             if region.is_record_in_region(region_record, region_partitioning):
                 region.add_record(region_record)
 
-            for aux_region in aux_regions:
-                aux_region_record = VehicleRecord.build_record(record)
-                if aux_region.is_record_in_region(aux_region_record, region_partitioning):
-                    aux_region.add_record(aux_region_record)
+    return region
 
-    return region, aux_regions
+
+def load_auxiliary_region(records_path: str,
+                          region_partitioning_path: str,
+                          aux_region_id: tuple[int, int]) -> Region:
+    aux_region = Region(region_id=aux_region_id, is_auxiliary=True)
+
+    region_partitioning: dict = load(region_partitioning_path)
+    with open(records_path, mode="r", encoding="utf-8") as file:
+        for line in file:
+            record = json.loads(line)
+
+            aux_region_record = VehicleRecord.build_record(record)
+            if aux_region.is_record_in_region(aux_region_record, region_partitioning):
+                aux_region.add_record(aux_region_record)
+
+    return aux_region
 
 
 class Region:
@@ -90,6 +100,16 @@ class RegionCompact:
 
     def add_cluster(self, cluster: VehicleRecordClusterCompact) -> None:
         self.clusters.add(cluster)
+
+    def number_of_clusters(self) -> int:
+        return len(self.clusters)
+
+    def number_of_singleton_clusters(self) -> int:
+        count = 0
+        for cluster in self.clusters:
+            if cluster.get_size() == 1:
+                count += 1
+        return count
 
     def __eq__(self, other):
         if isinstance(other, RegionCompact):

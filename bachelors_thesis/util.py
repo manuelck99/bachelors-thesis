@@ -165,23 +165,31 @@ def edit_distance_gain(s1: str, s2: str) -> float:
 
 
 def get_trace(records: list[Record], road_graph: nx.MultiDiGraph, cameras_info: dict) -> Trace:
+    trace = get_trace_as_list(records, road_graph, cameras_info)
+    return get_trace_from_list(trace)
+
+
+def get_trace_as_list(records: list[Record], road_graph: nx.MultiDiGraph, cameras_info: dict) -> list[list[float]]:
     trace = list()
     for record in records:
         x, y = record.get_coordinates(road_graph, cameras_info)
         trace.append([x, y])
+    return trace
 
+
+def get_trace_from_list(trace: list[list[float]]) -> Trace:
     trace_df = pd.DataFrame(trace, columns=["longitude", "latitude"])
     return Trace.from_dataframe(trace_df, lon_column="longitude", lat_column="latitude", xy=True)
 
 
-def get_node_path(road_graph: nx.MultiDiGraph, path_df: pd.DataFrame) -> list[int] | None:
+def get_node_path(path_df: pd.DataFrame, road_graph: nx.MultiDiGraph) -> list[int] | None:
     """
     Returns a path as a node ``list``. This function doesn't check if *path_df* is empty. Additionally, if
     one of the edges in *path_df* doesn't exist in *road_graph*, ``None`` is returned. Likewise, if the resulting
     path has edges that aren't continuous.
 
-    :param road_graph: NetworkX ``M̀ultiDiGraph``
     :param path_df: Pandas ``DataFrame`` returned from mappymatch's ``MatchResult.path_to_dataframe()``
+    :param road_graph: NetworkX ``M̀ultiDiGraph``
     :return: path as a node ``list``
     """
 

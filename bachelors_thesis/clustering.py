@@ -1,6 +1,4 @@
-import logging
 import math
-import time
 from uuid import UUID
 
 import numpy as np
@@ -9,8 +7,6 @@ from faiss import IndexFlatIP, normalize_L2, index_cpu_to_all_gpus, omp_get_max_
 from config import K, DIMENSION, NUMBER_OF_THREADS, SIMILARITY_THRESHOLD, WEIGHT_VEHICLE_SIMILARITY, \
     WEIGHT_LICENSE_PLATE_SIMILARITY
 from vehicle_record import VehicleRecord, VehicleRecordCluster
-
-logger = logging.getLogger(__name__)
 
 
 class TopKSearcher:
@@ -66,7 +62,6 @@ def cluster_records(records: list[VehicleRecord], *, use_gpu=False) -> set[Vehic
     license_plate_features_ids = [record.get_record_id() for record in
                                   filter(lambda r: r.has_license_plate(), records)]
 
-    t0 = time.time_ns()
     vehicle_top_k_searcher = TopKSearcher(vehicle_features, vehicle_features_ids, dimension=DIMENSION)
     vehicle_top_k_results = vehicle_top_k_searcher.search(vehicle_features,
                                                           vehicle_features_ids,
@@ -80,8 +75,6 @@ def cluster_records(records: list[VehicleRecord], *, use_gpu=False) -> set[Vehic
                                                                       k=K,
                                                                       number_of_threads=NUMBER_OF_THREADS,
                                                                       use_gpu=use_gpu)
-    t1 = time.time_ns()
-    logger.info(f"Top K search time [ms]: {(t1 - t0) / 1000 / 1000}")
 
     # Merging rough search results for vehicle features and license plate features
     records_dict = {record.get_record_id(): record for record in records}
@@ -95,7 +88,6 @@ def cluster_records(records: list[VehicleRecord], *, use_gpu=False) -> set[Vehic
         candidate_records_dict[record_id] = candidate_records_dict[record_id].union(s)
 
     # Clustering
-    t0 = time.time_ns()
     for record_id, candidate_records in candidate_records_dict.items():
         record = records_dict[record_id]
         candidate_clusters = {record.get_cluster() for record in candidate_records if record.has_assigned_cluster()}
@@ -122,8 +114,6 @@ def cluster_records(records: list[VehicleRecord], *, use_gpu=False) -> set[Vehic
                                                weight_vehicle_similarity=WEIGHT_VEHICLE_SIMILARITY,
                                                weight_license_plate_similarity=WEIGHT_LICENSE_PLATE_SIMILARITY)
                 cluster.add_record(record)
-    t1 = time.time_ns()
-    logger.info(f"Clustering execution time [ms]: {(t1 - t0) / 1000 / 1000}")
 
     clusters = {record.get_cluster() for record in records}
     return clusters
