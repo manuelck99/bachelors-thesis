@@ -9,7 +9,7 @@ import osmnx as ox
 from config import NUMBER_OF_ANNOTATED_VEHICLES
 from map_matching import map_match_traces
 from util import EPSG_32650, get_trace_as_list
-from vehicle_record import Record, Cluster, VehicleRecordCluster, VehicleRecordClusterCompact
+from vehicle_record import Record, Cluster, VehicleRecordClusterCompact
 
 Precision = float
 Recall = float
@@ -350,20 +350,15 @@ def calculate_temporal_distance(point: Record, trajectory: list[Record]) -> floa
     return min_distance
 
 
-def save_vehicle_clusters(clusters: set[VehicleRecordCluster], path: str) -> None:
-    vehicle_clusters = list()
-    for vehicle_id in range(NUMBER_OF_ANNOTATED_VEHICLES):
-        cluster_of_vehicle: VehicleRecordCluster | None = find_cluster_of_vehicle(vehicle_id, clusters)
-        if cluster_of_vehicle is not None:
-            vehicle_clusters.append(cluster_of_vehicle.to_dict())
-
+def save_clusters(clusters: set[Cluster], path: str) -> None:
+    clusters = [cluster.to_dict() for cluster in clusters]
     with open(path, mode="w", encoding="utf-8") as file:
-        json.dump(vehicle_clusters, file)
+        json.dump(clusters, file)
 
 
-def load_vehicle_clusters(path: str) -> set[VehicleRecordClusterCompact]:
-    vehicle_clusters = None
+def load_clusters(path: str) -> set[VehicleRecordClusterCompact]:
+    clusters = None
     with open(path, mode="r", encoding="utf-8") as file:
-        vehicle_clusters = json.load(file)
+        clusters = json.load(file)
 
-    return {VehicleRecordClusterCompact.from_dict(vehicle_cluster) for vehicle_cluster in vehicle_clusters}
+    return {VehicleRecordClusterCompact.from_dict(cluster) for cluster in clusters}

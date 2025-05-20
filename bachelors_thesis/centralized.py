@@ -1,8 +1,9 @@
 import logging
+import time
 from argparse import ArgumentParser
 
 from clustering import cluster_records
-from evaluation import cluster_evaluation_with_record_gt, trajectory_evaluation_with_record_gt, save_vehicle_clusters
+from evaluation import save_clusters
 from map_matching import map_match_clusters
 from util import load, load_graph
 from vehicle_record import load_records
@@ -15,43 +16,27 @@ def run(records_path: str,
         cameras_info_path: str,
         clusters_output_path: str,
         use_gpu: bool) -> None:
+    t0 = time.time_ns()
+
     records = load_records(records_path)
     logger.info(f"Number of records: {len(records)}")
 
-    # Clustering
     clusters = cluster_records(records, use_gpu=use_gpu)
     singleton_clusters = {cluster for cluster in clusters if cluster.get_size() == 1}
     logger.info(f"Number of clusters: {len(clusters)}")
     logger.info(f"Number of singleton clusters: {len(singleton_clusters)}")
     logger.info(f"Number of non-singleton clusters: {len(clusters) - len(singleton_clusters)}")
 
-    # Map-matching
     road_graph = load_graph(road_graph_path)
     cameras_info: dict = load(cameras_info_path)
     map_match_clusters(clusters, road_graph, road_graph_path, cameras_info)
     map_matched_clusters = {cluster for cluster in clusters if cluster.has_valid_node_path()}
     logger.info(f"Number of map-matched clusters: {len(map_matched_clusters)}")
 
-    # Cluster evaluation
-    precision, recall, f1_score, expansion = cluster_evaluation_with_record_gt(records, clusters)
-    logger.info(f"Precision: {precision}")
-    logger.info(f"Recall: {recall}")
-    logger.info(f"F1-Score: {f1_score}")
-    logger.info(f"Expansion: {expansion}")
+    save_clusters(clusters, clusters_output_path)
 
-    # Trajectory evaluation
-    lcss, edr, stlc = trajectory_evaluation_with_record_gt(records,
-                                                           clusters,
-                                                           road_graph,
-                                                           road_graph_path,
-                                                           cameras_info,
-                                                           gamma=0.8,
-                                                           epsilon=50)
-    logger.info(f"LCSS distance: {lcss}")
-    logger.info(f"EDR distance: {edr}")
-    logger.info(f"STLC distance: {stlc}")
-
-    save_vehicle_clusters(clusters, clusters_output_path)
+    t1 = time.time_ns()
+    logger.info(f"Runtime [ms]: {(t1 - t0) / 1000 / 1000}")
 
 
 if __name__ == "__main__":
@@ -80,7 +65,7 @@ if __name__ == "__main__":
         "--clusters-output-path",
         type=str,
         required=True,
-        help="Path to the file, where ground-truth vehicle clusters should be saved to"
+        help="Path to the file, where clusters should be saved to"
     )
     parser.add_argument(
         "--use-gpu",

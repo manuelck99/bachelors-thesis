@@ -1,4 +1,5 @@
 import logging
+import time
 from argparse import ArgumentParser, ArgumentTypeError
 from multiprocessing import Process
 
@@ -6,9 +7,12 @@ import zmq
 
 import networking_pb2
 from clustering import cluster_records
+from evaluation import save_clusters
 from map_matching import map_match_clusters
 from region import Region, load_region, load_auxiliary_region
 from util import load_graph, load
+
+logger = logging.getLogger(__name__)
 
 
 def parse_auxiliary_region(s: str) -> tuple[int, int]:
@@ -49,6 +53,8 @@ def process_region(records_path: str,
                    road_graph_path: str,
                    cameras_info_path: str,
                    region_partitioning_path: str,
+                   clusters_output_path: str,
+                   socket_address: str,
                    region_id: int,
                    use_gpu: bool) -> None:
     region = load_region(records_path,
@@ -64,14 +70,17 @@ def process_region(records_path: str,
 
     context = zmq.Context()
     socket = context.socket(zmq.PUSH)
-    socket.connect("tcp://localhost:5555")
+    socket.connect(socket_address)
     send_clusters(socket, region)
+
+    save_clusters(region.clusters, clusters_output_path)
 
 
 def process_auxiliary_region(records_path: str,
                              road_graph_path: str,
                              cameras_info_path: str,
                              region_partitioning_path: str,
+                             socket_address: str,
                              aux_region_id: tuple[int, int],
                              use_gpu: bool) -> None:
     aux_region = load_auxiliary_region(records_path,
@@ -87,7 +96,7 @@ def process_auxiliary_region(records_path: str,
 
     context = zmq.Context()
     socket = context.socket(zmq.PUSH)
-    socket.connect("tcp://localhost:5555")
+    socket.connect(socket_address)
     send_clusters(socket, aux_region)
 
 
@@ -95,9 +104,13 @@ def run(records_path: str,
         road_graph_path: str,
         cameras_info_path: str,
         region_partitioning_path: str,
+        clusters_output_path: str,
+        socket_address: str,
         region: int,
         aux_regions: list[tuple[int, int]],
         use_gpu: bool) -> None:
+    t0 = time.time_ns()
+
     processes = list()
 
     process = Process(target=process_region,
@@ -105,6 +118,8 @@ def run(records_path: str,
                             road_graph_path,
                             cameras_info_path,
                             region_partitioning_path,
+                            clusters_output_path,
+                            socket_address,
                             region,
                             use_gpu))
     processes.append(process)
@@ -114,6 +129,7 @@ def run(records_path: str,
                                                                  road_graph_path,
                                                                  cameras_info_path,
                                                                  region_partitioning_path,
+                                                                 socket_address,
                                                                  aux_region,
                                                                  use_gpu))
         processes.append(process)
@@ -123,6 +139,9 @@ def run(records_path: str,
 
     for process in processes:
         process.join()
+
+    t1 = time.time_ns()
+    logger.info(f"Runtime [ms]: {(t1 - t0) / 1000 / 1000}")
 
 
 if __name__ == "__main__":
@@ -154,6 +173,18 @@ if __name__ == "__main__":
         help="Path to the region partitioning file"
     )
     parser.add_argument(
+        "--clusters-output-path",
+        type=str,
+        required=True,
+        help="Path to the file, where clusters should be saved to"
+    )
+    parser.add_argument(
+        "--socket-address",
+        type=str,
+        required=True,
+        help="Address the socket should connect to"
+    )
+    parser.add_argument(
         "--region",
         type=int,
         required=True,
@@ -178,6 +209,8 @@ if __name__ == "__main__":
         args.road_graph_path,
         args.cameras_info_path,
         args.region_partitioning_path,
+        args.clusters_output_path,
+        args.socket_address,
         args.region,
         args.auxiliary_regions,
         args.use_gpu)

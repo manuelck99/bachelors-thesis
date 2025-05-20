@@ -12,10 +12,10 @@ from mappymatch.matchers.lcss.lcss import LCSSMatcher
 from util import load_graph, get_trace, get_trace_from_list, get_node_path
 
 if TYPE_CHECKING:
-    from vehicle_record import VehicleRecordCluster, Record
+    from vehicle_record import Cluster, Record
 
 
-def map_match_clusters(clusters: set[VehicleRecordCluster],
+def map_match_clusters(clusters: set[Cluster],
                        road_graph: nx.MultiDiGraph,
                        road_graph_path: str,
                        cameras_info: dict) -> None:

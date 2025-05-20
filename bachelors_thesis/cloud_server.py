@@ -1,11 +1,11 @@
 import logging
+import time
 from argparse import ArgumentParser
 
 import zmq
 
 import networking_pb2
-from evaluation import load_vehicle_clusters, cluster_evaluation_with_cluster_gt, \
-    trajectory_evaluation_with_cluster_gt
+from evaluation import save_clusters
 from merging import find_clusters_to_merge, merge_clusters
 from region import RegionID, RegionCompact
 from util import load, load_graph
@@ -22,12 +22,14 @@ def parse_region_id(region_id: str, is_auxiliary: bool) -> RegionID:
         return int(region_id)
 
 
-def run(records_path: str,
-        road_graph_path: str,
+def run(road_graph_path: str,
         cameras_info_path: str,
         region_partitioning_path: str,
-        clusters_input_path: str,
+        clusters_output_path: str,
+        socket_address: str,
         use_gpu: bool) -> None:
+    t0 = time.time_ns()
+
     road_graph = load_graph(road_graph_path)
     cameras_info: dict = load(cameras_info_path)
     region_partitioning: dict = load(region_partitioning_path)
@@ -43,7 +45,7 @@ def run(records_path: str,
 
     context = zmq.Context()
     socket = context.socket(zmq.PULL)
-    socket.bind("tcp://localhost:5555")
+    socket.bind(socket_address)
 
     while not all(regions_done.values()):
         message = socket.recv()
@@ -78,36 +80,16 @@ def run(records_path: str,
                               cameras_info=cameras_info)
 
     clusters = set(clusters.values())
-    clusters_gt = load_vehicle_clusters(clusters_input_path)
+    save_clusters(clusters, clusters_output_path)
 
-    precision, recall, f1_score, expansion = cluster_evaluation_with_cluster_gt(clusters_gt, clusters)
-    logger.info(f"Precision: {precision}")
-    logger.info(f"Recall: {recall}")
-    logger.info(f"F1-Score: {f1_score}")
-    logger.info(f"Expansion: {expansion}")
-
-    # Trajectory evaluation
-    lcss, edr, stlc = trajectory_evaluation_with_cluster_gt(clusters_gt,
-                                                            clusters,
-                                                            road_graph,
-                                                            cameras_info,
-                                                            gamma=0.8,
-                                                            epsilon=50)
-    logger.info(f"LCSS distance: {lcss}")
-    logger.info(f"EDR distance: {edr}")
-    logger.info(f"STLC distance: {stlc}")
+    t1 = time.time_ns()
+    logger.info(f"Runtime [ms]: {(t1 - t0) / 1000 / 1000}")
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
     parser = ArgumentParser()
-    parser.add_argument(
-        "--records-path",
-        type=str,
-        required=True,
-        help="Path to the records file"
-    )
     parser.add_argument(
         "--road-graph-path",
         type=str,
@@ -127,10 +109,16 @@ if __name__ == "__main__":
         help="Path to the region partitioning file"
     )
     parser.add_argument(
-        "--clusters-input-path",
+        "--clusters-output-path",
         type=str,
         required=True,
-        help="Path to the file, where ground-truth vehicle clusters should be loaded from"
+        help="Path to the file, where clusters should be saved to"
+    )
+    parser.add_argument(
+        "--socket-address",
+        type=str,
+        required=True,
+        help="Address the socket should bind to"
     )
     parser.add_argument(
         "--use-gpu",
@@ -139,9 +127,9 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    run(args.records_path,
-        args.road_graph_path,
+    run(args.road_graph_path,
         args.cameras_info_path,
         args.region_partitioning_path,
-        args.clusters_input_path,
+        args.clusters_output_path,
+        args.socket_address,
         args.use_gpu)

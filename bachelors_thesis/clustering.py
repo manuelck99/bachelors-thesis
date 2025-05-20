@@ -115,5 +115,5 @@ def cluster_records(records: list[VehicleRecord], *, use_gpu=False) -> set[Vehic
                                                weight_license_plate_similarity=WEIGHT_LICENSE_PLATE_SIMILARITY)
                 cluster.add_record(record)
 
-    clusters = {record.get_cluster() for record in records}
+    clusters = {record.get_cluster() for record in records if record.has_assigned_cluster()}
     return clusters

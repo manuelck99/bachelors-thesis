@@ -70,6 +70,10 @@ class Record(ABC):
         pass
 
     @abstractmethod
+    def to_dict(self) -> dict:
+        pass
+
+    @abstractmethod
     def __eq__(self, other):
         pass
 
@@ -114,6 +118,14 @@ class VehicleRecordCompact(Record):
         camera = cameras_info[self.__camera_id]
         node_id = camera["node_id"]
         return road_graph.nodes[node_id]["x"], road_graph.nodes[node_id]["y"]
+
+    def to_dict(self) -> dict:
+        record_dict = dict()
+        record_dict[RECORD_ID] = self.__record_id.hex
+        record_dict[VEHICLE_ID] = self.__vehicle_id
+        record_dict[CAMERA_ID] = self.__camera_id
+        record_dict[TIMESTAMP] = self.__timestamp
+        return record_dict
 
     @staticmethod
     def from_dict(record_dict: dict) -> VehicleRecordCompact:
@@ -307,6 +319,10 @@ class Cluster(ABC):
         pass
 
     @abstractmethod
+    def to_dict(self) -> dict:
+        pass
+
+    @abstractmethod
     def __eq__(self, other):
         pass
 
@@ -381,6 +397,28 @@ class VehicleRecordClusterCompact(Cluster):
 
     def has_license_plate(self) -> bool:
         return self.__centroid_license_plate_feature is not None
+
+    def to_dict(self) -> dict:
+        cluster_dict = dict()
+
+        cluster_dict["cluster_id"] = self.__cluster_id.hex
+        cluster_dict["centroid_vehicle_feature"] = self.__centroid_vehicle_feature.tolist()
+
+        cluster_dict["centroid_license_plate_feature"] = list()
+        cluster_dict["centroid_license_plate_text"] = ""
+        if self.has_license_plate():
+            cluster_dict["centroid_license_plate_feature"].extend(self.__centroid_license_plate_feature.tolist())
+            cluster_dict["centroid_license_plate_text"] = self.get_centroid_license_plate_text()
+
+        cluster_dict["node_path"] = list()
+        if self.has_node_path():
+            cluster_dict["node_path"].extend(self.__node_path)
+
+        cluster_dict["records"] = list()
+        for record in self.__records:
+            cluster_dict["records"].append(record.to_dict())
+
+        return cluster_dict
 
     @staticmethod
     def from_dict(cluster_dict) -> VehicleRecordClusterCompact:
@@ -574,7 +612,7 @@ class VehicleRecordCluster(Cluster):
 
     def calculate_similarity_to_record(self, record: VehicleRecord) -> float:
         vehicle_similarity = calculate_similarity(self.__centroid_vehicle_feature, record.get_vehicle_feature())
-        if self.__number_of_license_plate_features != 0 and record.has_license_plate():
+        if self.has_license_plate() and record.has_license_plate():
             license_plate_similarity = calculate_similarity(self.__centroid_license_plate_feature,
                                                             record.get_license_plate_feature())
             centroid_license_plate_text = self.get_centroid_license_plate_text()
