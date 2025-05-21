@@ -17,7 +17,6 @@ if TYPE_CHECKING:
 
 def map_match_clusters(clusters: set[Cluster],
                        road_graph: nx.MultiDiGraph,
-                       road_graph_path: str,
                        cameras_info: dict) -> None:
     clusters_to_map_match = list()
     for cluster in clusters:
@@ -29,7 +28,7 @@ def map_match_clusters(clusters: set[Cluster],
         trace = cluster.get_trace_as_list(road_graph, cameras_info)
         traces.append(trace)
 
-    node_paths = map_match_traces(traces, road_graph_path)
+    node_paths = map_match_traces(traces, road_graph)
     for node_path, cluster in zip(node_paths, clusters_to_map_match):
         cluster.set_node_path(node_path)
 
@@ -48,13 +47,13 @@ def map_match_records(records: list[Record], road_graph: nx.MultiDiGraph, camera
         return get_node_path(path_df, road_graph)
 
 
-def map_match_traces(traces: list[list[list[float]]], road_graph_path: str) -> list[list[int] | None]:
+def map_match_traces(traces: list[list[list[float]]], road_graph: nx.MultiDiGraph) -> list[list[int] | None]:
     number_of_processes = 4
     number_of_traces = len(traces)
     chunk_size = math.ceil(number_of_traces / number_of_processes)
     traces_chunks = [traces[i:i + chunk_size] for i in range(0, number_of_traces, chunk_size)]
 
-    args = [(traces_chunk, road_graph_path) for traces_chunk in traces_chunks]
+    args = [(traces_chunk, road_graph.graph["path"]) for traces_chunk in traces_chunks]
     with Pool(processes=number_of_processes) as pool:
         node_paths = pool.starmap(_map_match_traces, args)
     node_paths = [node_path for node_paths_chunk in node_paths for node_path in node_paths_chunk]

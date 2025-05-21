@@ -92,7 +92,6 @@ def cluster_evaluation_with_cluster_gt(clusters_gt: set[Cluster],
 def trajectory_evaluation_with_record_gt(records_gt: list[Record],
                                          clusters: set[Cluster],
                                          road_graph: nx.MultiDiGraph,
-                                         road_graph_path: str,
                                          cameras_info: dict,
                                          *,
                                          gamma: float,
@@ -131,7 +130,7 @@ def trajectory_evaluation_with_record_gt(records_gt: list[Record],
         traces.append(trace)
 
     node_paths_dict = dict()
-    node_paths = map_match_traces(traces, road_graph_path)
+    node_paths = map_match_traces(traces, road_graph)
     for vehicle_id, node_path in zip(vehicle_ids, node_paths):
         if node_path is not None:
             node_paths_dict[vehicle_id] = node_path

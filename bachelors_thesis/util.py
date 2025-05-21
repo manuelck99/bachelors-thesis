@@ -69,7 +69,9 @@ def save_graph(graph: nx.MultiDiGraph, path: str) -> None:
 
 
 def load_graph(path: str) -> nx.MultiDiGraph:
-    return load(path)
+    G: nx.MultiDiGraph = load(path)
+    G.graph["path"] = path
+    return G
 
 
 def save(object: Any, path: str) -> None:
