@@ -494,7 +494,14 @@ class VehicleRecordClusterCompact(Cluster):
             number_of_clusters_with_license_plates += 1
             centroid_license_plate_feature += cluster.get_centroid_license_plate_feature()
             centroid_license_plate_text_count[cluster.get_centroid_license_plate_text()] += 1
-        centroid_license_plate_feature /= number_of_clusters_with_license_plates
+
+        if number_of_clusters_with_license_plates != 0:
+            centroid_license_plate_feature /= number_of_clusters_with_license_plates
+            centroid_license_plate_text = max(centroid_license_plate_text_count,
+                                              key=centroid_license_plate_text_count.get)
+        else:
+            centroid_license_plate_feature = None
+            centroid_license_plate_text = None
 
         records = list()
         for cluster in clusters:
@@ -506,8 +513,7 @@ class VehicleRecordClusterCompact(Cluster):
         return VehicleRecordClusterCompact(cluster_id=cluster_id,
                                            centroid_vehicle_feature=centroid_vehicle_feature,
                                            centroid_license_plate_feature=centroid_license_plate_feature,
-                                           centroid_license_plate_text=max(centroid_license_plate_text_count,
-                                                                           key=centroid_license_plate_text_count.get),
+                                           centroid_license_plate_text=centroid_license_plate_text,
                                            records=set(records),
                                            node_path=node_path)
 
@@ -562,7 +568,10 @@ class VehicleRecordCluster(Cluster):
         return self.__centroid_license_plate_feature
 
     def get_centroid_license_plate_text(self) -> str | None:
-        return max(self.__license_plate_text_count, key=self.__license_plate_text_count.get)
+        if len(self.__license_plate_text_count) == 0:
+            return None
+        else:
+            return max(self.__license_plate_text_count, key=self.__license_plate_text_count.get)
 
     def get_node_path(self) -> list[int] | None:
         return self.__node_path
