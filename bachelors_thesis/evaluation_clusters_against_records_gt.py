@@ -46,7 +46,6 @@ if __name__ == "__main__":
     lcss, edr, stlc = trajectory_evaluation_with_record_gt(records_gt,
                                                            clusters,
                                                            road_graph,
-                                                           args.road_graph_path,
                                                            cameras_info,
                                                            gamma=0.8,
                                                            epsilon=50)

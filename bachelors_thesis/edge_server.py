@@ -66,7 +66,7 @@ def process_region(records_path: str,
 
     road_graph = load_graph(road_graph_path)
     cameras_info: dict = load(cameras_info_path)
-    map_match_clusters(region.clusters, road_graph, road_graph_path, cameras_info)
+    map_match_clusters(region.clusters, road_graph, cameras_info)
 
     context = zmq.Context()
     socket = context.socket(zmq.PUSH)
@@ -92,7 +92,7 @@ def process_auxiliary_region(records_path: str,
 
     road_graph = load_graph(road_graph_path)
     cameras_info: dict = load(cameras_info_path)
-    map_match_clusters(aux_region.clusters, road_graph, road_graph_path, cameras_info)
+    map_match_clusters(aux_region.clusters, road_graph, cameras_info)
 
     context = zmq.Context()
     socket = context.socket(zmq.PUSH)
