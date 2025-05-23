@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import time
 from multiprocessing import Pool
 from typing import TYPE_CHECKING
 
@@ -9,7 +10,7 @@ from mappymatch.maps.nx.nx_map import NxMap
 from mappymatch.maps.nx.readers.osm_readers import parse_osmnx_graph, NetworkType
 from mappymatch.matchers.lcss.lcss import LCSSMatcher
 
-from util import load_graph, get_trace, get_trace_from_list, get_node_path
+from util import load_graph, get_trace, get_trace_from_list, get_node_path, log_info
 
 if TYPE_CHECKING:
     from vehicle_record import Cluster, Record
@@ -17,7 +18,11 @@ if TYPE_CHECKING:
 
 def map_match_clusters(clusters: set[Cluster],
                        road_graph: nx.MultiDiGraph,
-                       cameras_info: dict) -> None:
+                       cameras_info: dict,
+                       *,
+                       region=None,
+                       lock=None) -> None:
+    t0 = time.time_ns()
     clusters_to_map_match = list()
     for cluster in clusters:
         if cluster.get_size() >= 2:
@@ -31,6 +36,11 @@ def map_match_clusters(clusters: set[Cluster],
     node_paths = map_match_traces(traces, road_graph)
     for node_path, cluster in zip(node_paths, clusters_to_map_match):
         cluster.set_node_path(node_path)
+    t1 = time.time_ns()
+    log_info(f"Map-Matching time [ms]: {(t1 - t0) / 1000 / 1000}", region=region, lock=lock)
+
+    map_matched_clusters = {cluster for cluster in clusters if cluster.has_valid_node_path()}
+    log_info(f"Number of map-matched clusters: {len(map_matched_clusters)}", region=region, lock=lock)
 
 
 def map_match_records(records: list[Record], road_graph: nx.MultiDiGraph, cameras_info: dict) -> list[int] | None:

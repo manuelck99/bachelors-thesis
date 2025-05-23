@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import base64
+import logging
 import pickle
+from logging import Logger
 from typing import Any, TYPE_CHECKING
 
 import networkx as nx
@@ -205,3 +207,37 @@ def get_node_path(path_df: pd.DataFrame, road_graph: nx.MultiDiGraph) -> list[in
         return list(map(lambda e: e[0], edges)) + list(map(lambda e: e[1], edges[-1:]))
     else:
         return None
+
+
+def setup_logger(path: str) -> None:
+    logger = get_logger()
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
+
+    file_handler = logging.FileHandler(path, mode="w", encoding="utf-8")
+    file_handler.setLevel(logging.INFO)
+
+    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s | %(message)s")
+    file_handler.setFormatter(formatter)
+
+    if not logger.hasHandlers():
+        logger.addHandler(file_handler)
+
+
+def get_logger() -> Logger:
+    return logging.getLogger("bachelors_thesis")
+
+
+def log_info(message: str, *, region=None, lock=None) -> None:
+    try:
+        if lock is not None:
+            lock.acquire()
+
+        logger = get_logger()
+        if region is not None:
+            logger.info(f"Region {region}: {message}")
+        else:
+            logger.info(message)
+    finally:
+        if lock is not None:
+            lock.release()

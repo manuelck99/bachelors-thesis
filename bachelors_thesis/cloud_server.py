@@ -1,4 +1,3 @@
-import logging
 import time
 from argparse import ArgumentParser
 
@@ -8,10 +7,8 @@ import networking_pb2
 from evaluation import save_clusters
 from merging import find_clusters_to_merge, merge_clusters
 from region import RegionID, RegionCompact
-from util import load, load_graph
+from util import load, load_graph, setup_logger, log_info
 from vehicle_record import VehicleRecordClusterCompact
-
-logger = logging.getLogger(__name__)
 
 
 def parse_region_id(region_id: str, is_auxiliary: bool) -> RegionID:
@@ -29,7 +26,6 @@ def run(road_graph_path: str,
         socket_address: str,
         use_gpu: bool) -> None:
     t0 = time.time_ns()
-
     road_graph = load_graph(road_graph_path)
     cameras_info: dict = load(cameras_info_path)
     region_partitioning: dict = load(region_partitioning_path)
@@ -81,14 +77,11 @@ def run(road_graph_path: str,
 
     clusters = set(clusters.values())
     save_clusters(clusters, clusters_output_path)
-
     t1 = time.time_ns()
-    logger.info(f"Runtime [ms]: {(t1 - t0) / 1000 / 1000}")
+    log_info(f"Runtime [ms]: {(t1 - t0) / 1000 / 1000}")
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-
     parser = ArgumentParser()
     parser.add_argument(
         "--road-graph-path",
@@ -115,6 +108,12 @@ if __name__ == "__main__":
         help="Path to the file, where clusters should be saved to"
     )
     parser.add_argument(
+        "--logging-path",
+        type=str,
+        required=True,
+        help="Path to the logging file"
+    )
+    parser.add_argument(
         "--socket-address",
         type=str,
         required=True,
@@ -126,6 +125,8 @@ if __name__ == "__main__":
         help="Use all GPUs for similarity search, otherwise use only CPUs"
     )
     args = parser.parse_args()
+
+    setup_logger(args.logging_path)
 
     run(args.road_graph_path,
         args.cameras_info_path,

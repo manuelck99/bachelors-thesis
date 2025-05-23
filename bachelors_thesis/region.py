@@ -75,6 +75,13 @@ class Region:
                 count += 1
         return count
 
+    def get_name(self) -> str:
+        if self.is_auxiliary:
+            i, j = self.region_id
+            return f"{i}-{j}"
+        else:
+            return str(self.region_id)
+
     def __eq__(self, other):
         if isinstance(other, Region):
             return self.is_auxiliary == other.is_auxiliary and self.region_id == other.region_id

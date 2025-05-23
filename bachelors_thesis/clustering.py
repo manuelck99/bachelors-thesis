@@ -1,4 +1,5 @@
 import math
+import time
 from uuid import UUID
 
 import numpy as np
@@ -6,6 +7,7 @@ from faiss import IndexFlatIP, normalize_L2, index_cpu_to_all_gpus, omp_get_max_
 
 from config import K, DIMENSION, NUMBER_OF_THREADS, SIMILARITY_THRESHOLD, WEIGHT_VEHICLE_SIMILARITY, \
     WEIGHT_LICENSE_PLATE_SIMILARITY
+from util import log_info
 from vehicle_record import VehicleRecord, VehicleRecordCluster
 
 
@@ -53,8 +55,13 @@ class TopKSearcher:
         return xq_id_map
 
 
-def cluster_records(records: list[VehicleRecord], *, use_gpu=False) -> set[VehicleRecordCluster]:
+def cluster_records(records: list[VehicleRecord],
+                    *,
+                    region=None,
+                    lock=None,
+                    use_gpu=False) -> set[VehicleRecordCluster]:
     # Top K rough search
+    t0 = time.time_ns()
     vehicle_features = [record.get_vehicle_feature() for record in records]
     vehicle_features_ids = [record.get_record_id() for record in records]
     license_plate_features = [record.get_license_plate_feature() for record in
@@ -75,8 +82,11 @@ def cluster_records(records: list[VehicleRecord], *, use_gpu=False) -> set[Vehic
                                                                       k=K,
                                                                       number_of_threads=NUMBER_OF_THREADS,
                                                                       use_gpu=use_gpu)
+    t1 = time.time_ns()
+    log_info(f"Top K rough search time [ms]: {(t1 - t0) / 1000 / 1000}", region=region, lock=lock)
 
     # Merging rough search results for vehicle features and license plate features
+    t0 = time.time_ns()
     records_dict = {record.get_record_id(): record for record in records}
     candidate_records_dict = dict()
     for record_id, top_k_ids in vehicle_top_k_results.items():
@@ -86,8 +96,11 @@ def cluster_records(records: list[VehicleRecord], *, use_gpu=False) -> set[Vehic
     for record_id, top_k_ids in license_plate_top_k_results.items():
         s = {records_dict[top_k_id] for top_k_id in top_k_ids if top_k_id != record_id}
         candidate_records_dict[record_id] = candidate_records_dict[record_id].union(s)
+    t1 = time.time_ns()
+    log_info(f"Merging rough search results time [ms]: {(t1 - t0) / 1000 / 1000}", region=region, lock=lock)
 
     # Clustering
+    t0 = time.time_ns()
     for record_id, candidate_records in candidate_records_dict.items():
         record = records_dict[record_id]
         candidate_clusters = {record.get_cluster() for record in candidate_records if record.has_assigned_cluster()}
@@ -114,6 +127,13 @@ def cluster_records(records: list[VehicleRecord], *, use_gpu=False) -> set[Vehic
                                                weight_vehicle_similarity=WEIGHT_VEHICLE_SIMILARITY,
                                                weight_license_plate_similarity=WEIGHT_LICENSE_PLATE_SIMILARITY)
                 cluster.add_record(record)
+    t1 = time.time_ns()
+    log_info(f"Clustering time [ms]: {(t1 - t0) / 1000 / 1000}", region=region, lock=lock)
 
     clusters = {record.get_cluster() for record in records if record.has_assigned_cluster()}
+    singleton_clusters = {cluster for cluster in clusters if cluster.get_size() == 1}
+    log_info(f"Number of clusters: {len(clusters)}", region=region, lock=lock)
+    log_info(f"Number of singleton clusters: {len(singleton_clusters)}", region=region, lock=lock)
+    log_info(f"Number of non-singleton clusters: {len(clusters) - len(singleton_clusters)}", region=region, lock=lock)
+
     return clusters

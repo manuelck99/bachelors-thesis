@@ -1,7 +1,6 @@
-import logging
 import time
 from argparse import ArgumentParser, ArgumentTypeError
-from multiprocessing import Process
+from multiprocessing import Process, Lock
 
 import zmq
 
@@ -10,9 +9,7 @@ from clustering import cluster_records
 from evaluation import save_clusters
 from map_matching import map_match_clusters
 from region import Region, load_region, load_auxiliary_region
-from util import load_graph, load
-
-logger = logging.getLogger(__name__)
+from util import load_graph, load, setup_logger, log_info
 
 
 def parse_auxiliary_region(s: str) -> tuple[int, int]:
@@ -56,17 +53,19 @@ def process_region(records_path: str,
                    clusters_output_path: str,
                    socket_address: str,
                    region_id: int,
+                   lock: Lock,
                    use_gpu: bool) -> None:
     region = load_region(records_path,
                          region_partitioning_path,
                          region_id)
+    log_info(f"Number of records: {region.number_of_records()}", region=region.get_name(), lock=lock)
 
-    clusters = cluster_records(region.records, use_gpu=use_gpu)
+    clusters = cluster_records(region.records, region=region.get_name(), lock=lock, use_gpu=use_gpu)
     region.clusters = clusters
 
     road_graph = load_graph(road_graph_path)
     cameras_info: dict = load(cameras_info_path)
-    map_match_clusters(region.clusters, road_graph, cameras_info)
+    map_match_clusters(region.clusters, road_graph, cameras_info, region=region.get_name(), lock=lock)
 
     context = zmq.Context()
     socket = context.socket(zmq.PUSH)
@@ -82,17 +81,19 @@ def process_auxiliary_region(records_path: str,
                              region_partitioning_path: str,
                              socket_address: str,
                              aux_region_id: tuple[int, int],
+                             lock: Lock,
                              use_gpu: bool) -> None:
     aux_region = load_auxiliary_region(records_path,
                                        region_partitioning_path,
                                        aux_region_id)
+    log_info(f"Number of records: {aux_region.number_of_records()}", region=aux_region.get_name(), lock=lock)
 
-    clusters = cluster_records(aux_region.records, use_gpu=use_gpu)
+    clusters = cluster_records(aux_region.records, region=aux_region.get_name(), lock=lock, use_gpu=use_gpu)
     aux_region.clusters = clusters
 
     road_graph = load_graph(road_graph_path)
     cameras_info: dict = load(cameras_info_path)
-    map_match_clusters(aux_region.clusters, road_graph, cameras_info)
+    map_match_clusters(aux_region.clusters, road_graph, cameras_info, region=aux_region.get_name(), lock=lock)
 
     context = zmq.Context()
     socket = context.socket(zmq.PUSH)
@@ -110,9 +111,8 @@ def run(records_path: str,
         aux_regions: list[tuple[int, int]],
         use_gpu: bool) -> None:
     t0 = time.time_ns()
-
+    lock = Lock()
     processes = list()
-
     process = Process(target=process_region,
                       args=(records_path,
                             road_graph_path,
@@ -121,6 +121,7 @@ def run(records_path: str,
                             clusters_output_path,
                             socket_address,
                             region,
+                            lock,
                             use_gpu))
     processes.append(process)
 
@@ -131,6 +132,7 @@ def run(records_path: str,
                                                                  region_partitioning_path,
                                                                  socket_address,
                                                                  aux_region,
+                                                                 lock,
                                                                  use_gpu))
         processes.append(process)
 
@@ -141,12 +143,10 @@ def run(records_path: str,
         process.join()
 
     t1 = time.time_ns()
-    logger.info(f"Runtime [ms]: {(t1 - t0) / 1000 / 1000}")
+    log_info(f"Runtime [ms]: {(t1 - t0) / 1000 / 1000}")
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-
     parser = ArgumentParser()
     parser.add_argument(
         "--records-path",
@@ -179,6 +179,12 @@ if __name__ == "__main__":
         help="Path to the file, where clusters should be saved to"
     )
     parser.add_argument(
+        "--logging-path",
+        type=str,
+        required=True,
+        help="Path to the logging file"
+    )
+    parser.add_argument(
         "--socket-address",
         type=str,
         required=True,
@@ -204,6 +210,8 @@ if __name__ == "__main__":
         help="Use all GPUs for similarity search, otherwise use only CPUs"
     )
     args = parser.parse_args()
+
+    setup_logger(args.logging_path)
 
     run(args.records_path,
         args.road_graph_path,
