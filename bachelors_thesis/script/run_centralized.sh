@@ -94,9 +94,9 @@ ssh nova "tmux new-session -d -s $SESSION_NAME '$INIT_CONDA &&
   $COMMAND_40000_GPU &&
   $COMMAND_100000_GPU &&
   $COMMAND_1000000_GPU &&
-  $COMMAND_ALL_GPU &&
   $COMMAND_ANNOTATED &&
   $COMMAND_40000 &&
   $COMMAND_100000 &&
-  $COMMAND_1000000 &&
-  $COMMAND_ALL'"
+  $COMMAND_1000000'"
+
+# ALL dataset left out, because the kernel kills the Python process due to out-of-memory errors
