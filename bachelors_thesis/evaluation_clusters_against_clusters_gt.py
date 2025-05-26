@@ -42,12 +42,13 @@ if __name__ == "__main__":
     print(f"F1-Score: {f1_score}")
     print(f"Expansion: {expansion}")
 
+    # TODO: Try tuning gamma and epsilon
     lcss, edr, stlc = trajectory_evaluation_with_cluster_gt(clusters_gt,
                                                             clusters,
                                                             road_graph,
                                                             cameras_info,
                                                             gamma=0.8,
-                                                            epsilon=50)
+                                                            epsilon=200)
     print(f"LCSS distance: {lcss}")
     print(f"EDR distance: {edr}")
     print(f"STLC distance: {stlc}")

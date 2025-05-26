@@ -16,6 +16,9 @@ if TYPE_CHECKING:
     from vehicle_record import Cluster, Record
 
 
+# TODO: Try different Map-Matching library or custom implementation
+# TODO: Try adding historical data for probability- or ML-model
+# TODO: Try interpolating GPS points
 def map_match_clusters(clusters: set[Cluster],
                        road_graph: nx.MultiDiGraph,
                        cameras_info: dict,

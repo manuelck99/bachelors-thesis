@@ -5,7 +5,7 @@ import zmq
 
 import networking_pb2
 from evaluation import save_clusters
-from merging import find_clusters_to_merge, merge_clusters
+from merging import merge_clusters, find_clusters_to_merge
 from region import RegionID, RegionCompact
 from util import load, load_graph, setup_logger, log_info
 from vehicle_record import VehicleRecordClusterCompact
@@ -23,8 +23,7 @@ def run(road_graph_path: str,
         cameras_info_path: str,
         region_partitioning_path: str,
         clusters_output_path: str,
-        socket_address: str,
-        use_gpu: bool) -> None:
+        socket_address: str) -> None:
     t0 = time.time_ns()
     road_graph = load_graph(road_graph_path)
     cameras_info: dict = load(cameras_info_path)
@@ -42,7 +41,6 @@ def run(road_graph_path: str,
     context = zmq.Context()
     socket = context.socket(zmq.PULL)
     socket.bind(socket_address)
-
     while not all(regions_done.values()):
         message = socket.recv()
         envelope = networking_pb2.Envelope()
@@ -56,14 +54,9 @@ def run(road_graph_path: str,
             cluster = VehicleRecordClusterCompact.from_protobuf(envelope.cluster)
             regions[region_id].add_cluster(cluster)
 
-    clusters_to_merge = set()
-    for region in regions.values():
-        if region.is_auxiliary:
-            clusters_to_merge.update(find_clusters_to_merge(region,
-                                                            regions,
-                                                            region_partitioning=region_partitioning,
-                                                            cameras_info=cameras_info,
-                                                            use_gpu=use_gpu))
+    clusters_to_merge = find_clusters_to_merge(regions,
+                                               region_partitioning=region_partitioning,
+                                               cameras_info=cameras_info)
 
     clusters = dict()
     for region in regions.values():
@@ -119,11 +112,6 @@ if __name__ == "__main__":
         required=True,
         help="Address the socket should bind to"
     )
-    parser.add_argument(
-        "--use-gpu",
-        action="store_true",
-        help="Use all GPUs for similarity search, otherwise use only CPUs"
-    )
     args = parser.parse_args()
 
     setup_logger(args.logging_path)
@@ -132,5 +120,4 @@ if __name__ == "__main__":
         args.cameras_info_path,
         args.region_partitioning_path,
         args.clusters_output_path,
-        args.socket_address,
-        args.use_gpu)
+        args.socket_address)

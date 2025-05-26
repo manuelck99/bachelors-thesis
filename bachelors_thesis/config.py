@@ -1,7 +1,9 @@
+# TODO: Try adding different (smaller) K for merging
 K = 129
 DIMENSION = 256
 NUMBER_OF_THREADS = 8
 SIMILARITY_THRESHOLD = 0.8
+# TODO: Try tuning merging-threshold
 MERGING_THRESHOLD = 0.6
 WEIGHT_VEHICLE_SIMILARITY = 0.1
 WEIGHT_LICENSE_PLATE_SIMILARITY = 0.9

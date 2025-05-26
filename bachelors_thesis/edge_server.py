@@ -53,14 +53,13 @@ def process_region(records_path: str,
                    clusters_output_path: str,
                    socket_address: str,
                    region_id: int,
-                   lock: Lock,
-                   use_gpu: bool) -> None:
+                   lock: Lock) -> None:
     region = load_region(records_path,
                          region_partitioning_path,
                          region_id)
     log_info(f"Number of records: {region.number_of_records()}", region=region.get_name(), lock=lock)
 
-    clusters = cluster_records(region.records, region=region.get_name(), lock=lock, use_gpu=use_gpu)
+    clusters = cluster_records(region.records, region=region.get_name(), lock=lock)
     region.clusters = clusters
 
     road_graph = load_graph(road_graph_path)
@@ -81,14 +80,13 @@ def process_auxiliary_region(records_path: str,
                              region_partitioning_path: str,
                              socket_address: str,
                              aux_region_id: tuple[int, int],
-                             lock: Lock,
-                             use_gpu: bool) -> None:
+                             lock: Lock) -> None:
     aux_region = load_auxiliary_region(records_path,
                                        region_partitioning_path,
                                        aux_region_id)
     log_info(f"Number of records: {aux_region.number_of_records()}", region=aux_region.get_name(), lock=lock)
 
-    clusters = cluster_records(aux_region.records, region=aux_region.get_name(), lock=lock, use_gpu=use_gpu)
+    clusters = cluster_records(aux_region.records, region=aux_region.get_name(), lock=lock)
     aux_region.clusters = clusters
 
     road_graph = load_graph(road_graph_path)
@@ -108,33 +106,29 @@ def run(records_path: str,
         clusters_output_path: str,
         socket_address: str,
         region: int,
-        aux_regions: list[tuple[int, int]],
-        use_gpu: bool) -> None:
+        aux_regions: list[tuple[int, int]]) -> None:
     t0 = time.time_ns()
     lock = Lock()
     processes = list()
-    process = Process(target=process_region,
-                      args=(records_path,
-                            road_graph_path,
-                            cameras_info_path,
-                            region_partitioning_path,
-                            clusters_output_path,
-                            socket_address,
-                            region,
-                            lock,
-                            use_gpu))
-    processes.append(process)
+    processes.append(Process(target=process_region,
+                             args=(records_path,
+                                   road_graph_path,
+                                   cameras_info_path,
+                                   region_partitioning_path,
+                                   clusters_output_path,
+                                   socket_address,
+                                   region,
+                                   lock)))
 
     for aux_region in aux_regions:
-        process = Process(target=process_auxiliary_region, args=(records_path,
-                                                                 road_graph_path,
-                                                                 cameras_info_path,
-                                                                 region_partitioning_path,
-                                                                 socket_address,
-                                                                 aux_region,
-                                                                 lock,
-                                                                 use_gpu))
-        processes.append(process)
+        processes.append(Process(target=process_auxiliary_region,
+                                 args=(records_path,
+                                       road_graph_path,
+                                       cameras_info_path,
+                                       region_partitioning_path,
+                                       socket_address,
+                                       aux_region,
+                                       lock)))
 
     for process in processes:
         process.start()
@@ -204,11 +198,6 @@ if __name__ == "__main__":
         nargs="*",
         help="IDs of the auxiliary regions this edge server should handle, format \\d+-\\d+"
     )
-    parser.add_argument(
-        "--use-gpu",
-        action="store_true",
-        help="Use all GPUs for similarity search, otherwise use only CPUs"
-    )
     args = parser.parse_args()
 
     setup_logger(args.logging_path)
@@ -220,5 +209,4 @@ if __name__ == "__main__":
         args.clusters_output_path,
         args.socket_address,
         args.region,
-        args.auxiliary_regions,
-        args.use_gpu)
+        args.auxiliary_regions)
