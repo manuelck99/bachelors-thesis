@@ -63,7 +63,7 @@ def map_match_records(records: list[Record], road_graph: nx.MultiDiGraph, camera
 def map_match_traces(traces: list[list[list[float]]],
                      road_graph: nx.MultiDiGraph,
                      *,
-                     number_of_processes=2) -> list[list[int] | None]:
+                     number_of_processes=4) -> list[list[int] | None]:
     number_of_traces = len(traces)
     chunk_size = math.ceil(number_of_traces / number_of_processes)
     traces_chunks = [traces[i:i + chunk_size] for i in range(0, number_of_traces, chunk_size)]
