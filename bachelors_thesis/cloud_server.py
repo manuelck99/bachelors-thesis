@@ -5,7 +5,7 @@ import zmq
 
 import networking_pb2
 from evaluation import save_clusters
-from merging import merge_clusters, find_clusters_to_merge
+from merging import merge_clusters, find_clusters_to_merge_for_region
 from region import RegionID, RegionCompact
 from util import load, load_graph, setup_logger, log_info
 from vehicle_record import VehicleRecordClusterCompact
@@ -54,9 +54,15 @@ def run(road_graph_path: str,
             cluster = VehicleRecordClusterCompact.from_protobuf(envelope.cluster)
             regions[region_id].add_cluster(cluster)
 
-    clusters_to_merge = find_clusters_to_merge(regions,
-                                               region_partitioning=region_partitioning,
-                                               cameras_info=cameras_info)
+    clusters_to_merge = set()
+    for region in regions.values():
+        if region.is_auxiliary:
+            i, j = region.region_id
+            clusters_to_merge.update(find_clusters_to_merge_for_region(region,
+                                                                       regions[i].clusters,
+                                                                       regions[j].clusters,
+                                                                       region_partitioning,
+                                                                       cameras_info=cameras_info))
 
     clusters = dict()
     for region in regions.values():

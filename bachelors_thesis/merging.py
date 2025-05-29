@@ -1,67 +1,20 @@
 import math
-from multiprocessing import Lock, Queue, Process, set_start_method
 from uuid import UUID
 
 import networkx as nx
-from faiss import get_num_gpus
 
 from clustering import TopKSearcher
 from config import DIMENSION, K, MERGING_THRESHOLD
-from region import RegionID, RegionCompact
+from region import RegionCompact
 from vehicle_record import Record, Cluster, VehicleRecordClusterCompact
-
-
-def find_clusters_to_merge(regions: dict[RegionID, RegionCompact],
-                           *,
-                           region_partitioning: dict,
-                           cameras_info: dict) -> set[tuple[UUID, UUID]]:
-    set_start_method("spawn")
-
-    aux_regions = list(filter(lambda r: r.is_auxiliary, regions.values()))
-    number_of_aux_regions = len(aux_regions)
-    number_of_gpus = get_num_gpus()
-    gpu_locks = [Lock() for _ in range(number_of_gpus)]
-    results_queue = Queue()
-    assigned_gpus = [i % number_of_gpus for i in range(number_of_aux_regions)]
-
-    args = list()
-    for aux_region, assigned_gpu in zip(aux_regions, assigned_gpus):
-        i, j = aux_region.region_id
-        args.append((aux_region,
-                     regions[i].clusters,
-                     regions[j].clusters,
-                     region_partitioning,
-                     cameras_info,
-                     assigned_gpu,
-                     gpu_locks[assigned_gpu],
-                     results_queue))
-
-    processes = list()
-    for arg in args:
-        processes.append(Process(target=find_clusters_to_merge_for_region, args=arg))
-
-    for process in processes:
-        process.start()
-
-    for process in processes:
-        process.join()
-
-    clusters_to_merge = set()
-    while not results_queue.empty():
-        clusters_to_merge_result = results_queue.get()
-        clusters_to_merge.update(clusters_to_merge_result)
-
-    return clusters_to_merge
 
 
 def find_clusters_to_merge_for_region(aux_region: RegionCompact,
                                       region_i_clusters: set[Cluster],
                                       region_j_clusters: set[Cluster],
                                       region_partitioning: dict,
-                                      cameras_info: dict,
-                                      gpu: int,
-                                      gpu_lock: Lock,
-                                      results_queue: Queue) -> None:
+                                      *,
+                                      cameras_info: dict) -> set[tuple[UUID, UUID]]:
     i, j = aux_region.region_id
 
     aux_clusters_crossing_from_i_to_j = set()
@@ -84,9 +37,7 @@ def find_clusters_to_merge_for_region(aux_region: RegionCompact,
                                                                              overlapping_nodes_ij_j,
                                                                              region_i_clusters,
                                                                              region_j_clusters,
-                                                                             cameras_info=cameras_info,
-                                                                             gpu=gpu,
-                                                                             gpu_lock=gpu_lock))
+                                                                             cameras_info=cameras_info))
 
     if len(aux_clusters_crossing_from_j_to_i) != 0:
         clusters_to_merge.update(find_clusters_crossing_from_i_to_j_to_merge(aux_clusters_crossing_from_j_to_i,
@@ -95,11 +46,9 @@ def find_clusters_to_merge_for_region(aux_region: RegionCompact,
                                                                              overlapping_nodes_i_ij,
                                                                              region_j_clusters,
                                                                              region_i_clusters,
-                                                                             cameras_info=cameras_info,
-                                                                             gpu=gpu,
-                                                                             gpu_lock=gpu_lock))
+                                                                             cameras_info=cameras_info))
 
-    results_queue.put(clusters_to_merge)
+    return clusters_to_merge
 
 
 def find_clusters_crossing_from_i_to_j_to_merge(aux_clusters_crossing_from_i_to_j: set[Cluster],
@@ -109,9 +58,7 @@ def find_clusters_crossing_from_i_to_j_to_merge(aux_clusters_crossing_from_i_to_
                                                 region_i_clusters: set[Cluster],
                                                 region_j_clusters: set[Cluster],
                                                 *,
-                                                cameras_info: dict,
-                                                gpu: int,
-                                                gpu_lock: Lock) -> set[tuple[UUID, UUID]]:
+                                                cameras_info: dict) -> set[tuple[UUID, UUID]]:
     aux_clusters_dict = {cluster.get_cluster_id(): cluster for cluster in aux_clusters_crossing_from_i_to_j}
     clusters_to_merge = set()
 
@@ -125,9 +72,7 @@ def find_clusters_crossing_from_i_to_j_to_merge(aux_clusters_crossing_from_i_to_
 
     if len(clusters_i_ij) != 0:
         results_i_ij = cluster_rough_search(clusters_i_ij,
-                                            aux_clusters_crossing_from_i_to_j,
-                                            gpu=gpu,
-                                            gpu_lock=gpu_lock)
+                                            aux_clusters_crossing_from_i_to_j)
 
         for cluster_id, candidate_clusters in results_i_ij.items():
             if len(candidate_clusters) == 0:
@@ -160,9 +105,7 @@ def find_clusters_crossing_from_i_to_j_to_merge(aux_clusters_crossing_from_i_to_
 
     if len(clusters_ij_j) != 0:
         results_ij_j = cluster_rough_search(clusters_ij_j,
-                                            aux_clusters_crossing_from_i_to_j,
-                                            gpu=gpu,
-                                            gpu_lock=gpu_lock)
+                                            aux_clusters_crossing_from_i_to_j)
 
         for cluster_id, candidate_clusters in results_ij_j.items():
             if len(candidate_clusters) == 0:
@@ -189,10 +132,7 @@ def find_clusters_crossing_from_i_to_j_to_merge(aux_clusters_crossing_from_i_to_
 
 
 def cluster_rough_search(xb_clusters: set[Cluster],
-                         xq_clusters: set[Cluster],
-                         *,
-                         gpu: int,
-                         gpu_lock: Lock) -> dict[UUID, set[Cluster]]:
+                         xq_clusters: set[Cluster]) -> dict[UUID, set[Cluster]]:
     xb_clusters = list(xb_clusters)
     xq_clusters = list(xq_clusters)
 
@@ -210,22 +150,19 @@ def cluster_rough_search(xb_clusters: set[Cluster],
     license_plate_features_ids_xq = [cluster.get_cluster_id() for cluster in
                                      filter(lambda c: c.has_license_plate(), xq_clusters)]
 
-    with gpu_lock:
-        vehicle_top_k_searcher = TopKSearcher(vehicle_features_xb,
-                                              vehicle_features_ids_xb,
-                                              dimension=DIMENSION)
-        vehicle_top_k_results = vehicle_top_k_searcher.search_on_gpu(vehicle_features_xq,
-                                                                     vehicle_features_ids_xq,
-                                                                     k=K,
-                                                                     gpu=gpu)
+    vehicle_top_k_searcher = TopKSearcher(vehicle_features_xb,
+                                          vehicle_features_ids_xb,
+                                          dimension=DIMENSION)
+    vehicle_top_k_results = vehicle_top_k_searcher.search_on_all_gpus(vehicle_features_xq,
+                                                                      vehicle_features_ids_xq,
+                                                                      k=K)
 
-        license_plate_top_k_searcher = TopKSearcher(license_plate_features_xb,
-                                                    license_plate_features_ids_xb,
-                                                    dimension=DIMENSION)
-        license_plate_top_k_results = license_plate_top_k_searcher.search_on_gpu(license_plate_features_xq,
-                                                                                 license_plate_features_ids_xq,
-                                                                                 k=K,
-                                                                                 gpu=gpu)
+    license_plate_top_k_searcher = TopKSearcher(license_plate_features_xb,
+                                                license_plate_features_ids_xb,
+                                                dimension=DIMENSION)
+    license_plate_top_k_results = license_plate_top_k_searcher.search_on_all_gpus(license_plate_features_xq,
+                                                                                  license_plate_features_ids_xq,
+                                                                                  k=K)
 
     xb_clusters_dict = {cluster.get_cluster_id(): cluster for cluster in xb_clusters}
     candidate_clusters_dict = dict()
