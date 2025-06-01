@@ -7,8 +7,8 @@ python centralized.py \
  --records-path ../data/dataset/records-annotated.json \
  --road-graph-path ../data/road_graph/road_graph_ox_nsl_sim_sc.pickle \
  --cameras-info-path ../data/road_graph/road_graph_ox_nsl_sim_sc_cameras.pickle \
- --clusters-output-path ../data/evaluation/clusters_centralized_annotated_gpu_desktop.json \
- --logging-path ../data/logging/logging_centralized_annotated_gpu_desktop.log \
+ --clusters-output-path ../data/evaluation/clusters_centralized_annotated_gpu_cloud.json \
+ --logging-path ../data/logging/logging_centralized_annotated_gpu_cloud.log \
  --use-gpu
 ```
 
