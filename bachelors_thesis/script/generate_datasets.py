@@ -23,6 +23,16 @@ if __name__ == "__main__":
         nargs="+",
         help="Sizes of the datasets to generate"
     )
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="Generate all dataset"
+    )
+    parser.add_argument(
+        "--annotated",
+        action="store_true",
+        help="Generate annotated dataset"
+    )
     args = parser.parse_args()
 
     dataset_sizes = sorted(args.sizes)
@@ -30,18 +40,22 @@ if __name__ == "__main__":
                      size in dataset_sizes}
     dataset_line_counts = {size: 0 for size in dataset_sizes}
 
-    annotated_path = os.path.join(args.output_path, "records-annotated.json")
-    all_path = os.path.join(args.output_path, "records-all.json")
-    annotated_file = open(annotated_path, mode="w", encoding="utf-8")
-    all_file = open(all_path, mode="w", encoding="utf-8")
+    if args.annotated:
+        annotated_path = os.path.join(args.output_path, "records-annotated.json")
+        annotated_file = open(annotated_path, mode="w", encoding="utf-8")
+
+    if args.all:
+        all_path = os.path.join(args.output_path, "records-all.json")
+        all_file = open(all_path, mode="w", encoding="utf-8")
 
     with open(args.input_path, mode="r", encoding="utf-8") as in_file:
         for line in in_file:
             record = json.loads(line)
             is_annotated = record["vehicle_id"] is not None
 
-            all_file.write(line)
-            if is_annotated:
+            if args.all:
+                all_file.write(line)
+            if args.annotated and is_annotated:
                 annotated_file.write(line)
 
             for dataset_size in dataset_sizes:
@@ -52,5 +66,9 @@ if __name__ == "__main__":
 
     for file in dataset_files.values():
         file.close()
-    annotated_file.close()
-    all_file.close()
+
+    if args.annotated:
+        annotated_file.close()
+
+    if args.all:
+        all_file.close()
