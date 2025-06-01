@@ -53,7 +53,10 @@ def run(road_graph_path: str,
         else:
             cluster = VehicleRecordClusterCompact.from_protobuf(envelope.cluster)
             regions[region_id].add_cluster(cluster)
+    t1 = time.time_ns()
+    log_info(f"Edge-Servers runtime [ms]: {(t1 - t0) / 1000 / 1000}")
 
+    t = time.time_ns()
     clusters_to_merge = set()
     for region in regions.values():
         if region.is_auxiliary:
@@ -63,7 +66,10 @@ def run(road_graph_path: str,
                                                                        regions[j].clusters,
                                                                        region_partitioning,
                                                                        cameras_info=cameras_info))
+    t_ = time.time_ns()
+    log_info(f"Across-Region merging execution time [ms]: {(t_ - t) / 1000 / 1000}")
 
+    t = time.time_ns()
     clusters = dict()
     for region in regions.values():
         for cluster in region.clusters:
@@ -73,6 +79,8 @@ def run(road_graph_path: str,
                               clusters_to_merge,
                               road_graph=road_graph,
                               cameras_info=cameras_info)
+    t_ = time.time_ns()
+    log_info(f"Cluster merging execution time [ms]: {(t_ - t) / 1000 / 1000}")
 
     clusters = set(clusters.values())
     save_clusters(clusters, clusters_output_path)
