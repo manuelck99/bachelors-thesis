@@ -11,7 +11,6 @@ from mappymatch.constructs.trace import Trace
 
 import networking_pb2
 from config import DIMENSION
-from map_matching import map_match_records
 from util import feature_from_base64, normalize, calculate_similarity, edit_distance_gain, clip, get_trace, \
     get_trace_as_list
 
@@ -478,23 +477,21 @@ class VehicleRecordClusterCompact(Cluster):
                                            records=records)
 
     @staticmethod
-    def from_clusters(clusters: set[Cluster],
-                      road_graph: nx.MultiDiGraph,
-                      cameras_info: dict) -> VehicleRecordClusterCompact:
+    def from_clusters_partial(clusters: set[Cluster]) -> VehicleRecordClusterCompact:
         cluster_id = uuid4()
 
         centroid_vehicle_feature = np.zeros(DIMENSION).astype(np.float32)
-        for cluster in clusters:
-            centroid_vehicle_feature += cluster.get_centroid_vehicle_feature()
-        centroid_vehicle_feature /= len(clusters)
-
         centroid_license_plate_feature = np.zeros(DIMENSION).astype(np.float32)
         centroid_license_plate_text_count = defaultdict(int)
         number_of_clusters_with_license_plates = 0
-        for cluster in filter(lambda c: c.has_license_plate(), clusters):
-            number_of_clusters_with_license_plates += 1
-            centroid_license_plate_feature += cluster.get_centroid_license_plate_feature()
-            centroid_license_plate_text_count[cluster.get_centroid_license_plate_text()] += 1
+        for cluster in clusters:
+            centroid_vehicle_feature += cluster.get_centroid_vehicle_feature()
+
+            if cluster.has_license_plate():
+                centroid_license_plate_feature += cluster.get_centroid_license_plate_feature()
+                centroid_license_plate_text_count[cluster.get_centroid_license_plate_text()] += 1
+                number_of_clusters_with_license_plates += 1
+        centroid_vehicle_feature /= len(clusters)
 
         if number_of_clusters_with_license_plates != 0:
             centroid_license_plate_feature /= number_of_clusters_with_license_plates
@@ -504,19 +501,16 @@ class VehicleRecordClusterCompact(Cluster):
             centroid_license_plate_feature = None
             centroid_license_plate_text = None
 
-        records = list()
+        records = set()
         for cluster in clusters:
-            records.extend(cluster.get_records())
-        records.sort(key=lambda r: r.get_timestamp())
-
-        node_path = map_match_records(records, road_graph, cameras_info)
+            records.update(cluster.get_records())
 
         return VehicleRecordClusterCompact(cluster_id=cluster_id,
                                            centroid_vehicle_feature=centroid_vehicle_feature,
                                            centroid_license_plate_feature=centroid_license_plate_feature,
                                            centroid_license_plate_text=centroid_license_plate_text,
-                                           records=set(records),
-                                           node_path=node_path)
+                                           records=records,
+                                           node_path=list())
 
     def __eq__(self, other):
         if isinstance(other, VehicleRecordClusterCompact):

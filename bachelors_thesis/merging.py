@@ -1,10 +1,12 @@
 import math
+from multiprocessing import Queue, Process
 from uuid import UUID
 
 import networkx as nx
 
 from clustering import TopKSearcher
 from config import DIMENSION, K, MERGING_THRESHOLD
+from map_matching import map_match_traces
 from region import RegionCompact
 from vehicle_record import Record, Cluster, VehicleRecordClusterCompact
 
@@ -236,20 +238,64 @@ def merge_clusters(clusters: dict[UUID, Cluster],
                    clusters_to_merge: set[tuple[UUID, UUID]],
                    *,
                    road_graph: nx.MultiDiGraph,
-                   cameras_info: dict) -> dict[UUID, Cluster]:
+                   cameras_info: dict,
+                   number_of_processes=4) -> dict[UUID, Cluster]:
     merging_graph = nx.Graph()
     for i, j in clusters_to_merge:
         merging_graph.add_edge(i, j)
 
-    for clusters_ids in nx.connected_components(merging_graph):
-        clusters_ = {clusters[cluster_id] for cluster_id in clusters_ids}
+    merged_clusters = list()
+    for clusters_ids_component in nx.connected_components(merging_graph):
+        clusters_component = {clusters[cluster_id] for cluster_id in clusters_ids_component}
 
-        for cluster_id in clusters_ids:
+        for cluster_id in clusters_ids_component:
             del clusters[cluster_id]
 
-        cluster = VehicleRecordClusterCompact.from_clusters(clusters_,
-                                                            road_graph=road_graph,
-                                                            cameras_info=cameras_info)
-        clusters[cluster.get_cluster_id()] = cluster
+        merged_clusters.append(clusters_component)
+
+    chunk_size = math.ceil(len(merged_clusters) / number_of_processes)
+    merged_clusters_chunks = [merged_clusters[i:i + chunk_size] for i in range(0, len(merged_clusters), chunk_size)]
+    results_queue = Queue()
+    args = [(merged_clusters_chunk, road_graph, cameras_info, results_queue) for merged_clusters_chunk in
+            merged_clusters_chunks]
+    processes = list()
+    for arg in args:
+        process = Process(target=_merge_clusters, args=arg)
+        processes.append(process)
+
+    for process in processes:
+        process.start()
+
+    merged_clusters = list()
+    for _ in range(number_of_processes):
+        merged_clusters_chunk = results_queue.get()
+        merged_clusters.extend(merged_clusters_chunk)
+
+    for process in processes:
+        process.join()
+
+    for merged_cluster in merged_clusters:
+        clusters[merged_cluster.get_cluster_id()] = merged_cluster
 
     return clusters
+
+
+def _merge_clusters(clusters_to_merge: list[set[Cluster]],
+                    road_graph: nx.MultiDiGraph,
+                    cameras_info: dict,
+                    results_queue: Queue) -> None:
+    clusters = list()
+    for clusters_to_merge_temp in clusters_to_merge:
+        cluster = VehicleRecordClusterCompact.from_clusters_partial(clusters_to_merge_temp)
+        clusters.append(cluster)
+
+    traces = list()
+    for cluster in clusters:
+        trace = cluster.get_trace_as_list(road_graph, cameras_info)
+        traces.append(trace)
+
+    node_paths = map_match_traces(traces, road_graph)
+    for node_path, cluster in zip(node_paths, clusters):
+        cluster.set_node_path(node_path)
+
+    results_queue.put(clusters)
