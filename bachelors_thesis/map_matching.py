@@ -10,10 +10,10 @@ from mappymatch.maps.nx.nx_map import NxMap
 from mappymatch.maps.nx.readers.osm_readers import parse_osmnx_graph, NetworkType
 from mappymatch.matchers.lcss.lcss import LCSSMatcher
 
-from util import load_graph, get_trace, get_trace_from_list, get_node_path, log_info
+from util import get_trace_from_list, get_node_path, log_info
 
 if TYPE_CHECKING:
-    from vehicle_record import Cluster, Record
+    from vehicle_record import Cluster
 
 
 # TODO: Try different Map-Matching library or custom implementation
@@ -46,20 +46,6 @@ def map_match_clusters(clusters: set[Cluster],
     log_info(f"Number of map-matched clusters: {len(map_matched_clusters)}", region=region, lock=lock)
 
 
-def map_match_records(records: list[Record], road_graph: nx.MultiDiGraph, cameras_info: dict) -> list[int] | None:
-    trace = get_trace(records, road_graph, cameras_info)
-
-    road_map = NxMap(parse_osmnx_graph(road_graph, network_type=NetworkType.DRIVE, xy=True))
-    matcher = LCSSMatcher(road_map)
-    match_result = matcher.match_trace(trace)
-    path_df = match_result.path_to_dataframe()
-
-    if path_df.empty:
-        return None
-    else:
-        return get_node_path(path_df, road_graph)
-
-
 def map_match_traces(traces: list[list[list[float]]],
                      road_graph: nx.MultiDiGraph,
                      *,
@@ -68,7 +54,7 @@ def map_match_traces(traces: list[list[list[float]]],
     chunk_size = math.ceil(number_of_traces / number_of_processes)
     traces_chunks = [traces[i:i + chunk_size] for i in range(0, number_of_traces, chunk_size)]
 
-    args = [(traces_chunk, road_graph.graph["path"]) for traces_chunk in traces_chunks]
+    args = [(traces_chunk, road_graph) for traces_chunk in traces_chunks]
     with Pool(processes=number_of_processes) as pool:
         node_paths = pool.starmap(_map_match_traces, args)
     node_paths = [node_path for node_paths_chunk in node_paths for node_path in node_paths_chunk]
@@ -76,8 +62,7 @@ def map_match_traces(traces: list[list[list[float]]],
     return node_paths
 
 
-def _map_match_traces(traces: list[list[list[float]]], road_graph_path: str) -> list[list[int] | None]:
-    road_graph = load_graph(road_graph_path)
+def _map_match_traces(traces: list[list[list[float]]], road_graph: nx.MultiDiGraph) -> list[list[int] | None]:
     road_map = NxMap(parse_osmnx_graph(road_graph, network_type=NetworkType.DRIVE, xy=True))
 
     node_paths = list()
