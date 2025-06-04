@@ -52,7 +52,7 @@ def cluster_evaluation_with_record_gt(records_gt: list[Record],
     number_of_annotated_vehicles = len(vehicle_records_count) - skipped_vehicles_count
     precision /= number_of_annotated_vehicles
     recall /= number_of_annotated_vehicles
-    f1_score = (precision * recall) / (precision + recall)
+    f1_score = 2 * (precision * recall) / (precision + recall)
     expansion /= number_of_annotated_vehicles
 
     return precision, recall, f1_score, expansion
@@ -83,7 +83,7 @@ def cluster_evaluation_with_cluster_gt(clusters_gt: set[Cluster],
     number_of_annotated_vehicles = NUMBER_OF_ANNOTATED_VEHICLES - skipped_vehicles_count
     precision /= number_of_annotated_vehicles
     recall /= number_of_annotated_vehicles
-    f1_score = (precision * recall) / (precision + recall)
+    f1_score = 2 * (precision * recall) / (precision + recall)
     expansion /= number_of_annotated_vehicles
 
     return precision, recall, f1_score, expansion
