@@ -81,22 +81,23 @@ COMMAND_ALL="python centralized.py \
 
 ################################ SSH ################################
 
+SESSION="centralized"
+
 CONDA_ENV="bachelors-thesis"
 INIT_CONDA="source /home/manuel/anaconda3/etc/profile.d/conda.sh"
-ACTIVATE_CONDA_ENV="source /home/manuel/anaconda3/bin/activate $CONDA_ENV"
-SESSION_NAME="centralized"
+ACTIVATE_CONDA_ENV="source /home/manuel/anaconda3/bin/activate ${CONDA_ENV}"
 PRE_COMMAND="cd ./bachelors-thesis/bachelors_thesis"
 
-ssh nova "tmux new-session -d -s $SESSION_NAME '$INIT_CONDA &&
-  $ACTIVATE_CONDA_ENV &&
-  $PRE_COMMAND &&
-  $COMMAND_ANNOTATED_GPU &&
-  $COMMAND_40000_GPU &&
-  $COMMAND_100000_GPU &&
-  $COMMAND_1000000_GPU &&
-  $COMMAND_ANNOTATED &&
-  $COMMAND_40000 &&
-  $COMMAND_100000 &&
-  $COMMAND_1000000'"
+ssh nova "tmux new-session -d -s ${SESSION} '${INIT_CONDA} &&
+  ${ACTIVATE_CONDA_ENV} &&
+  ${PRE_COMMAND} &&
+  ${COMMAND_ANNOTATED_GPU} &&
+  ${COMMAND_40000_GPU} &&
+  ${COMMAND_100000_GPU} &&
+  ${COMMAND_1000000_GPU} &&
+  ${COMMAND_ANNOTATED} &&
+  ${COMMAND_40000} &&
+  ${COMMAND_100000} &&
+  ${COMMAND_1000000}'"
 
 # ALL dataset left out, because the kernel kills the Python process due to out-of-memory errors

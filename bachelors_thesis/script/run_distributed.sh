@@ -1,8 +1,8 @@
 #!/bin/bash
 
+REGION="4"
 DATASETS=("annotated" "40000" "100000" "1000000")
 SESSION="distributed"
-REGION="4"
 
 CONDA_ENV="bachelors-thesis"
 INIT_CONDA="source /home/manuel/anaconda3/etc/profile.d/conda.sh"
