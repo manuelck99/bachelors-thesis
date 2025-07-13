@@ -56,7 +56,8 @@ def process_region(records_path: str,
                    lock: Lock) -> None:
     region = load_region(records_path,
                          region_partitioning_path,
-                         region_id)
+                         region_id,
+                         is_auxiliary=False)
     log_info(f"Number of records: {region.number_of_records()}", region=region.get_name(), lock=lock)
 
     clusters = cluster_records(region.records, region=region.get_name(), lock=lock)
@@ -81,9 +82,10 @@ def process_auxiliary_region(records_path: str,
                              socket_address: str,
                              aux_region_id: tuple[int, int],
                              lock: Lock) -> None:
-    aux_region = load_auxiliary_region(records_path,
-                                       region_partitioning_path,
-                                       aux_region_id)
+    aux_region = load_region(records_path,
+                             region_partitioning_path,
+                             aux_region_id,
+                             is_auxiliary=True)
     log_info(f"Number of records: {aux_region.number_of_records()}", region=aux_region.get_name(), lock=lock)
 
     clusters = cluster_records(aux_region.records, region=aux_region.get_name(), lock=lock)

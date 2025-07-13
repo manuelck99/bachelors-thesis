@@ -10,8 +10,10 @@ type RegionID = int | tuple[int, int]
 
 def load_region(records_path: str,
                 region_partitioning_path: str,
-                region_id: int) -> Region:
-    region = Region(region_id=region_id, is_auxiliary=False)
+                region_id: RegionID,
+                *,
+                is_auxiliary: bool) -> Region:
+    region = Region(region_id=region_id, is_auxiliary=is_auxiliary)
 
     region_partitioning: dict = load(region_partitioning_path)
     with open(records_path, mode="r", encoding="utf-8") as file:
@@ -23,23 +25,6 @@ def load_region(records_path: str,
                 region.add_record(region_record)
 
     return region
-
-
-def load_auxiliary_region(records_path: str,
-                          region_partitioning_path: str,
-                          aux_region_id: tuple[int, int]) -> Region:
-    aux_region = Region(region_id=aux_region_id, is_auxiliary=True)
-
-    region_partitioning: dict = load(region_partitioning_path)
-    with open(records_path, mode="r", encoding="utf-8") as file:
-        for line in file:
-            record = json.loads(line)
-
-            aux_region_record = VehicleRecord.build_record(record)
-            if aux_region.is_record_in_region(aux_region_record, region_partitioning):
-                aux_region.add_record(aux_region_record)
-
-    return aux_region
 
 
 class Region:
