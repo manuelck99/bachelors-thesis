@@ -9,6 +9,7 @@ from uuid import UUID, uuid4
 import networkx as nx
 import numpy as np
 from mappymatch.constructs.trace import Trace
+from sklearn.decomposition import IncrementalPCA
 
 import networking_pb2
 from config import DIMENSION
@@ -24,15 +25,99 @@ LICENSE_PLATE_TEXT = "plate_text"
 TIMESTAMP = "time"
 
 
-def load_records(records_path: str) -> Generator[VehicleRecord, None, None]:
+def load_transformed_records(records_path: str) -> Generator[VehicleRecord, None, None]:
+    ipca_vehicle_features = IncrementalPCA(64)
+    ipca_license_plate_features = IncrementalPCA(64)
+    batch_size = 10_000
+
+    # 1. pass: Fitting the features to PCA
+    batch_vehicle_features: list[np.ndarray] = list()
+    batch_license_plate_features: list[np.ndarray] = list()
     with open(records_path, mode="r", encoding="utf-8") as file:
         for line in file:
             record = json.loads(line)
-            yield VehicleRecord.build_record(record)
+            record = VehicleRecord.build_record(record)
+
+            if len(batch_vehicle_features) >= batch_size:
+                ipca_vehicle_features.partial_fit(np.array(batch_vehicle_features))
+                batch_vehicle_features.clear()
+            batch_vehicle_features.append(record.get_vehicle_feature())
+
+            if record.has_license_plate():
+                if len(batch_license_plate_features) >= batch_size:
+                    ipca_license_plate_features.partial_fit(np.array(batch_license_plate_features))
+                    batch_license_plate_features.clear()
+                batch_license_plate_features.append(record.get_license_plate_feature())
+
+    if batch_vehicle_features:
+        ipca_vehicle_features.partial_fit(np.array(batch_vehicle_features))
+
+    if batch_license_plate_features:
+        ipca_license_plate_features.partial_fit(np.array(batch_license_plate_features))
+
+    # 2. pass: Transforming the features
+    batch: list[VehicleRecord] = list()
+    with open(records_path, mode="r", encoding="utf-8") as file:
+        for line in file:
+            record = json.loads(line)
+            record = VehicleRecord.build_record(record)
+
+            if len(batch) >= batch_size:
+                batch_license_plate = list(filter(lambda r: r.has_license_plate(), batch))
+
+                transformed_vehicle_features = ipca_vehicle_features.transform(
+                    np.array(list(map(lambda r: r.get_vehicle_feature(), batch)))).astype(np.float32)
+                transformed_license_plate_features = ipca_license_plate_features.transform(
+                    np.array(list(map(lambda r: r.get_license_plate_feature(), batch_license_plate)))).astype(
+                    np.float32)
+
+                for record_, vehicle_feature in zip(batch, transformed_vehicle_features):
+                    record_.set_vehicle_feature(vehicle_feature)
+
+                for record_, license_plate_feature in zip(batch_license_plate, transformed_license_plate_features):
+                    record_.set_license_plate_feature(license_plate_feature)
+
+                for record_ in batch:
+                    yield record_
+
+                batch.clear()
+
+            batch.append(record)
+
+    if batch:
+        batch_license_plate = list(filter(lambda r: r.has_license_plate(), batch))
+
+        transformed_vehicle_features = ipca_vehicle_features.transform(
+            np.array(list(map(lambda r: r.get_vehicle_feature(), batch)))).astype(np.float32)
+        transformed_license_plate_features = ipca_license_plate_features.transform(
+            np.array(list(map(lambda r: r.get_license_plate_feature(), batch_license_plate)))).astype(
+            np.float32)
+
+        for record_, vehicle_feature in zip(batch, transformed_vehicle_features):
+            record_.set_vehicle_feature(vehicle_feature)
+
+        for record_, license_plate_feature in zip(batch_license_plate, transformed_license_plate_features):
+            record_.set_license_plate_feature(license_plate_feature)
+
+        for record_ in batch:
+            yield record_
+
+
+def load_records(records_path: str,
+                 *,
+                 transformed: bool) -> Generator[VehicleRecord, None, None]:
+    if transformed:
+        for record in load_transformed_records(records_path):
+            yield record
+    else:
+        with open(records_path, mode="r", encoding="utf-8") as file:
+            for line in file:
+                record = json.loads(line)
+                yield VehicleRecord.build_record(record)
 
 
 def load_annotated_records(records_path: str) -> Generator[VehicleRecord, None, None]:
-    for record in load_records(records_path):
+    for record in load_records(records_path, transformed=False):
         if record.is_annotated():
             yield record
 
@@ -188,8 +273,14 @@ class VehicleRecord(Record):
     def get_vehicle_feature(self) -> np.ndarray:
         return self.__vehicle_feature
 
+    def set_vehicle_feature(self, vehicle_feature: np.ndarray) -> None:
+        self.__vehicle_feature = vehicle_feature
+
     def get_license_plate_feature(self) -> np.ndarray | None:
         return self.__license_plate_feature
+
+    def set_license_plate_feature(self, license_plate_feature: np.ndarray | None) -> None:
+        self.__license_plate_feature = license_plate_feature
 
     def get_license_plate_text(self) -> str | None:
         return self.__license_plate_text

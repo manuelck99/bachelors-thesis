@@ -1,6 +1,6 @@
 # TODO: Try adding different (smaller) K for merging
 K = 129
-DIMENSION = 256
+DIMENSION = 64
 NUMBER_OF_THREADS = 4
 SIMILARITY_THRESHOLD = 0.85
 # TODO: Try tuning merging-threshold

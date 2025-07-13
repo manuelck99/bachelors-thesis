@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-import json
-
 from util import load
-from vehicle_record import VehicleRecord, VehicleRecordCluster, VehicleRecordClusterCompact
+from vehicle_record import VehicleRecord, VehicleRecordCluster, VehicleRecordClusterCompact, load_records
 
 type RegionID = int | tuple[int, int]
 
@@ -16,13 +14,9 @@ def load_region(records_path: str,
     region = Region(region_id=region_id, is_auxiliary=is_auxiliary)
 
     region_partitioning: dict = load(region_partitioning_path)
-    with open(records_path, mode="r", encoding="utf-8") as file:
-        for line in file:
-            record = json.loads(line)
-
-            region_record = VehicleRecord.build_record(record)
-            if region.is_record_in_region(region_record, region_partitioning):
-                region.add_record(region_record)
+    for record in load_records(records_path, transformed=True):
+        if region.is_record_in_region(record, region_partitioning):
+            region.add_record(record)
 
     return region
 
