@@ -5,26 +5,25 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - conda-forge::python=3.12.9
-  - conda-forge::pip=25.0.1
-  - conda-forge::pytest=8.3.5
+  - conda-forge::python=3.12.11
+  - conda-forge::pip=25.1.1
   - conda-forge::psutil=7.0.0
-  - conda-forge::pyzmq=26.4.0
-  - conda-forge::grpcio=1.71.0
-  - conda-forge::grpcio-tools=1.71.0
+  - conda-forge::pyzmq=27.0.0
+  - conda-forge::grpcio=1.73.1
+  - conda-forge::grpcio-tools=1.73.1
   - conda-forge::numpy=1.26.4
   - faiss-gpu=1.11.0
-  - conda-forge::networkx=3.4.2
-  - conda-forge::scipy=1.15.2
-  - conda-forge::scikit-learn=1.6.1
+  - conda-forge::networkx=3.5
+  - conda-forge::scipy=1.16.0
+  - conda-forge::scikit-learn=1.7.0
   - conda-forge::matplotlib=3.10.3
-  - conda-forge::osmnx=2.0.3
-  - conda-forge::pandas=2.2.3
+  - conda-forge::osmnx=2.0.5
+  - conda-forge::pandas=2.3.1
   - conda-forge::shapely=2.1.1
   - conda-forge::pyproj=3.7.1
   - conda-forge::levenshtein=0.27.1
-  - conda-forge::jupyterlab=4.4.2
-  - conda-forge::libsqlite=3.49.2
+  - conda-forge::jupyterlab=4.4.4
+  - conda-forge::libsqlite=3.50.2
 
 # mappymatch needs to be installed through pip, since it's not available as a conda package
 # pip install mappymatch

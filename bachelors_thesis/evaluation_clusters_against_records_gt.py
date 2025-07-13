@@ -35,7 +35,7 @@ if __name__ == "__main__":
     road_graph = load_graph(args.road_graph_path)
     cameras_info = load(args.cameras_info_path)
     clusters = load_clusters(args.clusters_path)
-    records_gt = load_annotated_records(args.records_gt_path)
+    records_gt = list(load_annotated_records(args.records_gt_path))
 
     precision, recall, f1_score, expansion = cluster_evaluation_with_record_gt(records_gt, clusters)
     print(f"Precision: {precision}")

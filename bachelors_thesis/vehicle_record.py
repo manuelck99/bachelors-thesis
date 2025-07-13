@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from abc import ABC, abstractmethod
 from collections import defaultdict
+from collections.abc import Generator
 from uuid import UUID, uuid4
 
 import networkx as nx
@@ -23,24 +24,17 @@ LICENSE_PLATE_TEXT = "plate_text"
 TIMESTAMP = "time"
 
 
-def load_records(record_path: str) -> list[VehicleRecord]:
-    records = list()
-    with open(record_path, mode="r", encoding="utf-8") as file:
+def load_records(records_path: str) -> Generator[VehicleRecord, None, None]:
+    with open(records_path, mode="r", encoding="utf-8") as file:
         for line in file:
             record = json.loads(line)
-            records.append(VehicleRecord.build_record(record))
-    return records
+            yield VehicleRecord.build_record(record)
 
 
-def load_annotated_records(record_path: str) -> list[VehicleRecord]:
-    records = list()
-    with open(record_path, mode="r", encoding="utf-8") as file:
-        for line in file:
-            record = json.loads(line)
-            record = VehicleRecord.build_record(record)
-            if record.is_annotated():
-                records.append(record)
-    return records
+def load_annotated_records(records_path: str) -> Generator[VehicleRecord, None, None]:
+    for record in load_records(records_path):
+        if record.is_annotated():
+            yield record
 
 
 # TODO: Try using PCA to reduce memory needs

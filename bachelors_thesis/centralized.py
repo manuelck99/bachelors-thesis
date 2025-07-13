@@ -14,7 +14,7 @@ def run(records_path: str,
         clusters_output_path: str,
         use_gpu: bool) -> None:
     t0 = time.time_ns()
-    records = load_records(records_path)
+    records = list(load_records(records_path))
     log_info(f"Number of records: {len(records)}")
 
     clusters = cluster_records(records, use_gpu=use_gpu)
