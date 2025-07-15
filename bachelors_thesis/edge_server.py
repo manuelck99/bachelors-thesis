@@ -8,7 +8,7 @@ import networking_pb2
 from clustering import cluster_records
 from evaluation import save_clusters
 from map_matching import map_match_clusters
-from region import Region, load_region, load_auxiliary_region
+from region import Region, load_region
 from util import load_graph, load, setup_logger, log_info
 
 
