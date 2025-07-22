@@ -28,7 +28,7 @@ TIMESTAMP = "time"
 def load_transformed_records(records_path: str) -> Generator[VehicleRecord, None, None]:
     ipca_vehicle_features = IncrementalPCA(DIMENSION)
     ipca_license_plate_features = IncrementalPCA(DIMENSION)
-    batch_size = 10_000
+    batch_size = 100_000
 
     # 1. pass: Fitting the features to PCA
     batch_vehicle_features: list[np.ndarray] = list()
