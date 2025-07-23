@@ -14,7 +14,7 @@ def load_region(records_path: str,
     region = Region(region_id=region_id, is_auxiliary=is_auxiliary)
 
     region_partitioning: dict = load(region_partitioning_path)
-    for record in load_records(records_path, transformed=True):
+    for record in load_records(records_path, transformed=False):
         if region.is_record_in_region(record, region_partitioning):
             region.add_record(record)
 

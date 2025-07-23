@@ -66,10 +66,7 @@ def find_clusters_crossing_from_i_to_j_to_merge(aux_clusters_crossing_from_i_to_
 
     clusters_i_ij = set()
     for cluster in region_i_clusters:
-        # TODO: Try only ends inside aux region
-        # TODO: Try node vs. record
-        # TODO: Try at least one node/record in aux region
-        if cluster_starts_outside_ends_inside_aux_region(cluster, aux_region_nodes):
+        if cluster_overlaps_aux_region(cluster, aux_region_nodes, cameras_info=cameras_info):
             clusters_i_ij.add(cluster)
 
     if len(clusters_i_ij) != 0:
@@ -82,7 +79,6 @@ def find_clusters_crossing_from_i_to_j_to_merge(aux_clusters_crossing_from_i_to_
 
             cluster = aux_clusters_dict[cluster_id]
 
-            # TODO: Try filtering out candidate clusters with low similarity first
             top_merging_score = -math.inf
             top_merging_cluster = None
             for candidate_cluster in candidate_clusters:
@@ -99,10 +95,7 @@ def find_clusters_crossing_from_i_to_j_to_merge(aux_clusters_crossing_from_i_to_
 
     clusters_ij_j = set()
     for cluster in region_j_clusters:
-        # TODO: Try only starts inside aux region
-        # TODO: Try node vs. record
-        # TODO: Try at least one node/record in aux region
-        if cluster_starts_inside_ends_outside_aux_region(cluster, aux_region_nodes):
+        if cluster_overlaps_aux_region(cluster, aux_region_nodes, cameras_info=cameras_info):
             clusters_ij_j.add(cluster)
 
     if len(clusters_ij_j) != 0:
@@ -115,7 +108,6 @@ def find_clusters_crossing_from_i_to_j_to_merge(aux_clusters_crossing_from_i_to_
 
             cluster = aux_clusters_dict[cluster_id]
 
-            # TODO: Try filtering out candidate clusters with low similarity first
             top_merging_score = -math.inf
             top_merging_cluster = None
             for candidate_cluster in candidate_clusters:
@@ -187,20 +179,16 @@ def cluster_crosses_from_i_to_j(cluster: Cluster,
     return False
 
 
-def cluster_starts_outside_ends_inside_aux_region(cluster: Cluster,
-                                                  aux_region_nodes: set[int]) -> bool:
-    node_path = cluster.get_node_path()
-    start_node = node_path[0]
-    end_node = node_path[-1]
-    return start_node not in aux_region_nodes and end_node in aux_region_nodes
-
-
-def cluster_starts_inside_ends_outside_aux_region(cluster: Cluster,
-                                                  aux_region_nodes: set[int]) -> bool:
-    node_path = cluster.get_node_path()
-    start_node = node_path[0]
-    end_node = node_path[-1]
-    return start_node in aux_region_nodes and end_node not in aux_region_nodes
+def cluster_overlaps_aux_region(cluster: Cluster,
+                                aux_region_nodes: set[int],
+                                *,
+                                cameras_info: dict) -> bool:
+    for record in cluster.get_records():
+        camera = cameras_info[record.get_camera_id()]
+        node = camera["node_id"]
+        if node in aux_region_nodes:
+            return True
+    return False
 
 
 def calculate_cluster_merging_score(cluster_from: Cluster,
@@ -223,7 +211,6 @@ def calculate_cluster_merging_score(cluster_from: Cluster,
         return math.pow(gamma, b) * math.exp(a) / (1 + math.exp(a))
     else:
         # TODO: Try Dijkstra (shortest path based on length or duration) or euclidean and/or time distance
-        # TODO: Try adding historical data for probability- or ML-model
         return -math.inf
 
 
