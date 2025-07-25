@@ -1,7 +1,7 @@
 #!/bin/bash
 
 REGION="4"
-DATASETS=("annotated" "40000" "100000" "1000000" "2000000" "3000000")
+DATASETS=("annotated" "40000" "100000" "1000000" "3000000")
 SESSION="distributed"
 
 CONDA_ENV="bachelors-thesis"
