@@ -2,6 +2,7 @@ import time
 from argparse import ArgumentParser
 
 from clustering import cluster_records
+from config import USE_PCA
 from evaluation import save_clusters
 from map_matching import map_match_clusters
 from util import load, load_graph, setup_logger, log_info
@@ -14,7 +15,7 @@ def run(records_path: str,
         clusters_output_path: str,
         use_gpu: bool) -> None:
     t0 = time.time_ns()
-    records = list(load_records(records_path, transformed=True))
+    records = list(load_records(records_path, transformed=USE_PCA))
     log_info(f"Number of records: {len(records)}")
 
     clusters = cluster_records(records, use_gpu=use_gpu)

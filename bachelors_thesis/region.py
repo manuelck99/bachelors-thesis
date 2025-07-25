@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from config import USE_PCA
 from util import load
 from vehicle_record import VehicleRecord, VehicleRecordCluster, VehicleRecordClusterCompact, load_records
 
@@ -14,7 +15,7 @@ def load_region(records_path: str,
     region = Region(region_id=region_id, is_auxiliary=is_auxiliary)
 
     region_partitioning: dict = load(region_partitioning_path)
-    for record in load_records(records_path, transformed=False):
+    for record in load_records(records_path, transformed=USE_PCA):
         if region.is_record_in_region(record, region_partitioning):
             region.add_record(record)
 
