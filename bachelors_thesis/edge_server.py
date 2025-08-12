@@ -67,6 +67,8 @@ def process_region(records_path: str,
     cameras_info: dict = load(cameras_info_path)
     map_match_clusters(region.clusters, road_graph, cameras_info, region=region.get_name(), lock=lock)
 
+    # TODO: Check if denoising and complementing improve accuracy
+
     context = zmq.Context()
     socket = context.socket(zmq.PUSH)
     socket.connect(socket_address)
@@ -94,6 +96,8 @@ def process_auxiliary_region(records_path: str,
     road_graph = load_graph(road_graph_path)
     cameras_info: dict = load(cameras_info_path)
     map_match_clusters(aux_region.clusters, road_graph, cameras_info, region=aux_region.get_name(), lock=lock)
+
+    # TODO: Check if denoising and complementing improve accuracy
 
     context = zmq.Context()
     socket = context.socket(zmq.PUSH)

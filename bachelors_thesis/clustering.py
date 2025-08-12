@@ -145,7 +145,6 @@ def cluster_records(records: list[VehicleRecord],
     log_info(f"Merging rough search results time [ms]: {(t1 - t0) / 1000 / 1000}", region=region, lock=lock)
 
     # Clustering
-    # TODO: Try using spatio-temporal data
     t0 = time.time_ns()
     for record_id, candidate_records in candidate_records_dict.items():
         record = records_dict[record_id]

@@ -122,7 +122,6 @@ def load_annotated_records(records_path: str) -> Generator[VehicleRecord, None, 
             yield record
 
 
-# TODO: Try using PCA to reduce memory needs
 class Record(ABC):
     @abstractmethod
     def get_record_id(self) -> UUID:

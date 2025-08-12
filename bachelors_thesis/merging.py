@@ -173,6 +173,7 @@ def cluster_rough_search(xb_clusters: set[Cluster],
 
 def cluster_crosses_from_i_to_j(cluster: Cluster,
                                 edges_from_i_to_j: set[tuple[int, int]]) -> bool:
+    # TODO: Check if using records would improve accuracy
     for u, v in zip(cluster.get_node_path(), cluster.get_node_path()[1:]):
         if (u, v) in edges_from_i_to_j:
             return True
@@ -210,7 +211,7 @@ def calculate_cluster_merging_score(cluster_from: Cluster,
     if a > 0:
         return math.pow(gamma, b) * math.exp(a) / (1 + math.exp(a))
     else:
-        # TODO: Try Dijkstra (shortest path based on length or duration) or euclidean and/or time distance
+        # TODO: Try Dijkstra (shortest path based on length or duration) or euclidean and/or time distance to come up with more meaningful score
         return -math.inf
 
 

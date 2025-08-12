@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from vehicle_record import Cluster
 
 
-# TODO: Try different Map-Matching library or custom implementation
+# TODO: Try different map-matching library or custom implementation
 # TODO: Try adding historical data for probability- or ML-model
 # TODO: Try interpolating GPS points
 def map_match_clusters(clusters: set[Cluster],

@@ -24,6 +24,8 @@ def run(records_path: str,
     cameras_info: dict = load(cameras_info_path)
     map_match_clusters(clusters, road_graph, cameras_info)
 
+    # TODO: Check if denoising and complementing improve accuracy
+
     save_clusters(clusters, clusters_output_path)
     t1 = time.time_ns()
     log_info(f"Runtime [ms]: {(t1 - t0) / 1000 / 1000}")
